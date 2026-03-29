@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+﻿import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, MapPin, Clock, ExternalLink } from 'lucide-react';
 
 export default function LocationHistory() {

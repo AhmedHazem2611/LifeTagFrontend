@@ -1,12 +1,82 @@
-import { useState } from 'react';
+﻿import React, { useState, useEffect } from 'react';
+import { Plus, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { Shield, Plus, X, Menu,  } from 'lucide-react';
+import logo from '../assets/logo.png';
+
+// Inline TagInput mimicking MedicalInfo's behavior
+const TagInput = ({ label, items, onChange }: { label: string, items: string[], onChange: (newItems: string[]) => void }) => {
+  const [inputValue, setInputValue] = useState('');
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (inputValue.trim()) {
+        onChange([...items, inputValue.trim()]);
+        setInputValue('');
+      }
+    }
+  };
+
+  const removeTag = (indexToRemove: number) => {
+    onChange(items.filter((_, idx) => idx !== indexToRemove));
+  };
+
+  return (
+    <div className="pt-2">
+      <label className="block text-[13px] font-medium text-slate-800 mb-2 ml-1">{label}</label>
+      
+      {items.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-3 px-1">
+          {items.map((tag, idx) => (
+            <div key={idx} className="flex items-center gap-1.5 bg-slate-50 text-slate-600 border border-slate-200 px-3 py-1.5 rounded-lg text-[13px] shadow-sm animate-in fade-in zoom-in duration-200">
+              <span className="font-medium">{tag}</span>
+              <button type="button" onClick={() => removeTag(idx)} className="text-slate-400 hover:text-red-500 focus:outline-none transition-colors">
+                &times;
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="flex gap-2">
+        <input
+          type="text"
+          className="auth-input bg-white w-full text-[13px]"
+          placeholder={`Add ${label.toLowerCase()}... (press Enter)`}
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          onKeyDown={handleKeyDown}
+        />
+        <button
+          type="button"
+          onClick={() => {
+            if (inputValue.trim()) {
+              onChange([...items, inputValue.trim()]);
+              setInputValue('');
+            }
+          }}
+          className="px-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold rounded-xl text-[13px] transition-colors border border-slate-200"
+        >
+          Add
+        </button>
+      </div>
+    </div>
+  );
+};
 
 export default function CustomTemplateBuilder() {
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [success, setSuccess] = useState(false);
+  
   const [fullName, setFullName] = useState('');
   const [sections, setSections] = useState<{name: string, items: string[]}[]>([]);
   const [newSectionName, setNewSectionName] = useState('');
+
+  useEffect(() => {
+    setTimeout(() => { setLoading(false); }, 500);
+  }, []);
 
   const handleAddSection = () => {
     if (newSectionName.trim()) {
@@ -15,144 +85,169 @@ export default function CustomTemplateBuilder() {
     }
   };
 
-  const handleAddItem = (sectionIndex: number) => {
-    const val = window.prompt("Enter item value:");
-    if (val && val.trim() !== '') {
-      const newSections = [...sections];
-      newSections[sectionIndex].items.push(val);
-      setSections(newSections);
-    }
-  };
-
-  const handleRemoveItem = (sectionIndex: number, itemIndex: number) => {       
+  const handleUpdateSectionItems = (sectionIndex: number, newItems: string[]) => {
     const newSections = [...sections];
-    newSections[sectionIndex].items.splice(itemIndex, 1);
+    newSections[sectionIndex].items = newItems;
     setSections(newSections);
   };
 
-  const handleSave = async () => {
-    if (!fullName) {
-      alert("Please enter a profile name");
+  const removeSection = (sectionIndex: number) => {
+    setSections(sections.filter((_, idx) => idx !== sectionIndex));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!fullName.trim()) {
+      alert("Please enter a Profile Name.");
       return;
     }
 
+    setSaving(true);
+    setSuccess(false);
+
     try {
-      await fetch('https://life-tag-backend-ahmedrashed2611-5674s-projects.vercel.app/api/save-medical-data', {
+      await fetch(`${import.meta.env.VITE_API_URL}/api/save-medical-data`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          userId: "temp-user",
           templateType: 'Custom',
           fullName: fullName,
           customSections: sections
-        }),
+        })
       });
-      navigate('/pin-protection');
-    } catch (e) {
-      navigate('/pin-protection');
+
+      setSuccess(true);
+      setTimeout(() => {
+          setSuccess(false);
+          navigate('/pin-protection'); 
+      }, 1500);
+    } catch (error) {
+      console.error("Error saving custom template:", error);
+    } finally {
+      setSaving(false);
     }
   };
 
+  const onFormKeyDown = (e: React.KeyboardEvent<HTMLFormElement>) => {
+    // Prevent form submission on enter for input fields
+    if (e.key === 'Enter' && (e.target as HTMLElement).tagName === 'INPUT') {
+      e.preventDefault();
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center min-h-screen bg-transparent">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-400"></div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-[#f8fbff] font-sans relative overflow-hidden pb-32">
-      <div className="max-w-md mx-auto px-6 pt-12 pb-6">
-        <div className="flex justify-between items-center mb-10">
-          <button onClick={() => navigate(-1)} className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm border border-gray-100 text-gray-500">
-            <X size={18} />
-          </button>
-          <Shield size={32} className="text-blue-500 bg-blue-50 p-1.5 rounded-full" />
+    <div className="flex-1 flex flex-col items-center p-6 bg-transparent min-h-screen font-body pb-[10vh]">
+      <div className="w-full max-w-[400px] md:max-w-[480px] flex flex-col items-center transition-all duration-300">
+        
+        <div className="mb-6 flex justify-center mt-4">
+          <img src={logo} alt="LifeTag Logo" className="w-28 h-28 object-contain drop-shadow-sm" />
         </div>
 
-        <div className="flex gap-1.5 mb-6 justify-center">
-          <div className="w-8 h-1.5 bg-blue-500 rounded-full"></div>
-          <div className="w-8 h-1.5 bg-blue-500 rounded-full"></div>
-          <div className="w-8 h-1.5 bg-blue-200 rounded-full"></div>
-          <div className="w-8 h-1.5 bg-gray-200 rounded-full"></div>
-          <div className="w-8 h-1.5 bg-gray-200 rounded-full"></div>
+        <div className="flex gap-2 w-full max-w-xs mx-auto mb-8">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="flex-1 h-2 rounded-full bg-slate-200 overflow-hidden">
+              {i <= 2 && (
+                <div
+                  className="h-full rounded-full animate-[pulse_1s_ease-in-out_1]"
+                  style={{
+                    background: 'linear-gradient(333deg, hsl(216 100% 43%) 0%, hsl(196 93% 76%) 100%)',
+                    width: '100%'
+                  }}
+                />
+              )}
+            </div>
+          ))}
         </div>
 
-        <h2 className="text-lg font-bold text-gray-800 text-center mb-2">Custom Template Builder</h2>
-        <p className="text-xs text-gray-500 text-center mb-6 px-2">
-          Create custom sections and add fields to each one
+        <h2 className="text-xl font-extrabold text-[#1e293b] tracking-tight mb-2">Custom Builder</h2>
+        <p className="text-xs text-slate-500 text-center mb-6 px-2">
+          Design your own tracking layout block by block
         </p>
 
-        {/* Profile Name Input */}
-        <div className="mb-4">
-          <label className="block text-xs font-semibold text-gray-700 mb-1.5 ml-1">Profile Name / Title</label>
-          <input
-            type="text"
-            placeholder="e.g. John's Pet, or My Custom Tracker"
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-100 outline-none"
-          />
-        </div>
+        <div className="w-full bg-white rounded-[24px] p-6 shadow-[0px_10px_30px_rgba(150,170,200,0.1)] border border-slate-50">
+          <form onSubmit={handleSubmit} onKeyDown={onFormKeyDown} className="flex flex-col gap-4">
+            
+            <div className="mb-2">
+              <label className="block text-[13px] font-medium text-slate-800 mb-1.5 ml-1">Profile Category / Title</label>
+              <input
+                type="text"
+                placeholder="e.g. Pet Care, Travel Kit"
+                className="auth-input w-full"
+                value={fullName}
+                onChange={e => setFullName(e.target.value)}
+              />
+            </div>
 
-        {/* Add Section Input */}
-        <div className="flex gap-2 mb-6">
-          <input
-            type="text"
-            placeholder="New section name..."
-            value={newSectionName}
-            onChange={(e) => setNewSectionName(e.target.value)}
-            className="flex-1 bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-100 outline-none"
-          />
-          <button
-            onClick={handleAddSection}
-            className="w-11 h-11 bg-blue-500 text-white rounded-xl flex items-center justify-center shadow-sm hover:bg-blue-600"
-          >
-            <Plus size={20} />
-          </button>
-        </div>
+            <div className="h-px w-full bg-slate-100 my-2"></div>
 
-        {sections.length === 0 ? (
-          <p className="text-sm text-gray-400 text-center mt-10">Add your first section above to get started</p>
-        ) : (
-          <div className="flex flex-col gap-4">
-            {sections.map((sec, idx) => (
-              <div key={idx} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 relative">
-                <div className="flex items-center gap-2 mb-2">
-                  <Menu size={16} className="text-gray-400" />
-                  <h3 className="font-bold text-gray-800 text-sm flex-1">{sec.name}</h3>
-                  <button onClick={() => setSections(sections.filter((_, i) => i !== idx))} className="text-red-400 bg-red-50 rounded-full p-1"><X size={14} /></button>
-                </div>
-                {sec.items.length > 0 && (
-                  <div className="flex flex-col gap-2 mb-2 ml-6">
-                    {sec.items.map((item, itemIdx) => (
-                      <div key={itemIdx} className="flex justify-between items-center bg-gray-50 px-3 py-1.5 rounded-lg text-xs text-gray-600 border border-gray-100">
-                        {item} <button onClick={() => handleRemoveItem(idx, itemIdx)} className="text-red-400 bg-red-50 rounded-full p-0.5"><X size={12} /></button>
-                      </div>
-                    ))}
+            <div className="flex flex-col gap-5">
+              {sections.map((sec, idx) => (
+                <div key={idx} className="relative p-5 bg-slate-50 border border-slate-100 rounded-xl shadow-sm">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="font-bold text-slate-800 text-[14px]">{sec.name}</h3>
+                    <button type="button" onClick={() => removeSection(idx)} className="text-slate-400 hover:text-red-500 transition-colors p-1 bg-white rounded-full shadow-sm border border-slate-100">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
                   </div>
-                )}
-                <div className="border-t border-gray-50 pt-2 ml-6">
-                  <button onClick={() => handleAddItem(idx)} className="flex items-center text-xs text-blue-500 hover:text-blue-700 font-medium">
-                    <Plus size={12} className="mr-1" /> Add Item
-                  </button>
+                  <TagInput 
+                    label="Items" 
+                    items={sec.items} 
+                    onChange={(newItems) => handleUpdateSectionItems(idx, newItems)} 
+                  />
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
 
-      </div>
+            <div className="mt-2 p-4 border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
+               <label className="block text-[13px] font-medium text-slate-700 mb-2 ml-1">Create Block</label>
+               <div className="flex gap-2">
+                 <input
+                   type="text"
+                   placeholder="Section Name (e.g Vaccinations)"
+                   className="auth-input bg-white w-full text-[13px]"
+                   value={newSectionName}
+                   onChange={e => setNewSectionName(e.target.value)}
+                 />
+                 <button
+                   type="button"
+                   onClick={handleAddSection}
+                   className="px-4 py-2 bg-blue-50 text-[#0062ff] font-semibold rounded-xl text-[13px] hover:bg-blue-100 transition-colors border border-blue-100 flex items-center gap-1 shrink-0"
+                 >
+                   <Plus className="w-4 h-4" /> Add
+                 </button>
+               </div>
+            </div>
 
-      <div className="absolute bottom-0 left-0 w-full p-6 bg-gradient-to-t from-[#f8fbff] via-[#f8fbff] to-transparent">
-        <div className="flex gap-4">
-          <button
-            onClick={() => navigate(-1)}
-            className="flex-1 bg-white text-gray-700 font-medium py-3 rounded-2xl border border-gray-200 shadow-sm hover:bg-gray-50"
-          >
-            Back
-          </button>
-          <button
-            onClick={handleSave}
-            className="flex-[2] bg-gradient-to-r from-blue-400 to-blue-600 text-white font-medium py-3 rounded-2xl shadow-md hover:from-blue-500 hover:to-blue-700"
-          >
-            Continue
-          </button>
+            <div className="flex gap-4 w-full mt-6 md:mt-4">
+              <button 
+                type="button" 
+                onClick={() => navigate(-1)} 
+                className="clay-button-white w-1/4"
+              >
+                Back
+              </button>
+              
+              <button 
+                type="submit" 
+                disabled={saving} 
+                className="clay-button w-3/4"
+              >
+                {saving ? '...' : (success ? 'Saved!' : 'Continue')}
+              </button>
+            </div>
+
+          </form>
         </div>
       </div>
     </div>
   );
 }
-

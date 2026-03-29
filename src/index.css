@@ -1,7 +1,188 @@
-﻿@tailwind base;
+@tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-body {
-  background-color: #f1f5f9;
+@layer base {
+  body {
+    background-color: #f8fbff;
+    color: #1a1c1e;
+    font-family: 'Inter', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 700;
+  }
+}
+
+@layer components {
+
+  /* Clay Button - High Fidelity */
+  .clay-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 600;
+    font-size: 16px;
+    background: linear-gradient(333deg, #005adc 0%, #8cdcfe 100%);
+    box-shadow:
+      0px 20px 40px rgba(172, 203, 250, 0.8),
+      inset 3px 1px 11px rgba(255, 255, 255, 0.5),
+      inset 0px -4px 10px #0077ff;
+    border-radius: 14px;
+    height: 48px;
+    padding: 0 24px;
+    color: white;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s ease;
+  }
+
+  .clay-button:hover {
+    transform: translateY(-2px);
+  }
+
+  .clay-button:active {
+    transform: translateY(0);
+  }
+
+  .clay-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* Clay Card - High Fidelity with High-Depth Shadows */
+  .clay-card {
+    background-color: white;
+    border-radius: 32px;
+    /* MULTI-LAYERED SHADOWS for better "emit" and depth */
+    box-shadow:
+      0px 10px 30px rgba(152, 167, 197, 0.2),
+      0px 40px 80px rgba(152, 167, 197, 0.15),
+      inset 0px 4px 12px rgba(255, 255, 255, 1),
+      inset 0px -4px 12px rgba(209, 219, 238, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(12px);
+    padding: 32px 24px 24px 24px;
+    /* Generous padding for logo integration */
+    width: 100%;
+    max-width: 400px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  /* PIN Box - Soft styling */
+  .pin-box {
+    width: 3.5rem;
+    height: 4rem;
+    background-color: #f1f5f9;
+    border: 2px solid transparent;
+    border-radius: 16px;
+    text-align: center;
+    font-size: 1.5rem;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 800;
+    color: #1a1c1e;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.03);
+    transition: all 0.2s ease;
+    outline: none;
+  }
+
+  .pin-box:focus {
+    border-color: #0062ff;
+    background-color: white;
+    box-shadow: 0 0 0 3px rgba(0, 98, 255, 0.15);
+  }
+
+  /* Shared Auth Form Input - Clean iOS style */
+  .clay-button-white {
+    border-radius: 13px;
+    border: 0;
+    box-shadow: 0px 8px 16px rgba(0, 30, 80, 0.08), 0px 10px 20px rgba(172, 203, 250, 0.15), inset 3px 2px 10px rgba(255, 255, 255, 1), inset 0px -4px 10px rgba(220, 230, 245, 0.7);
+    background: linear-gradient(333deg, #f8fafc 0%, #ffffff 100%);
+    color: #334155;
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 15px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 24px;
+    height: 48px;
+    cursor: pointer;
+  }
+
+  .clay-button-white:hover {
+    transform: translateY(-2px);
+    box-shadow: 0px 14px 28px rgba(172, 203, 250, 0.25), inset 3px 2px 10px rgba(255, 255, 255, 1), inset 0px -4px 10px rgba(220, 230, 245, 0.7);
+  }
+
+  .clay-button-white:active {
+    transform: translateY(-1px);
+  }
+
+  .clay-button-white:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .auth-input {
+    width: 100%;
+    background-color: white;
+    border: 1px solid rgba(160, 180, 210, 0.4);
+    border-radius: 12px;
+    padding: 12px 16px;
+    font-size: 14px;
+    font-family: 'Inter', sans-serif;
+    color: #1a1c1e;
+    transition: all 0.2s ease;
+    outline: none;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.01);
+  }
+
+  .auth-input:focus {
+    border-color: #0062ff;
+    box-shadow: 0 0 0 3px rgba(0, 98, 255, 0.15);
+  }
+
+  .auth-input::placeholder {
+    color: #9aa5b1;
+    font-weight: 400;
+  }
+
+  /* Template Selection Card from lifeline-tag-aid reference */
+  .template-card {
+    border-radius: 20px;
+    box-shadow: inset 0px 15px 30px rgba(255, 255, 255, 0.5), 0px 20px 40px rgba(152, 167, 197, 0.2), inset -6px -6px 12px rgba(209, 219, 238, 0.3);
+    background: linear-gradient(
+      151deg,
+      rgba(255, 255, 255, 1) 0%,
+      rgba(242, 246, 255, 0.52) 48%,
+      rgba(174, 190, 223, 0) 100%
+    );
+  }
+
+  /* Lifeline Dashboard Section Reference */
+  .clay-section {
+    border-radius: 20px;
+    background: white;
+    box-shadow: inset 0px 15px 30px rgba(255, 255, 255, 0.5), 0px 20px 40px rgba(152, 167, 197, 0.2), inset -6px -6px 12px rgba(209, 219, 238, 0.3);
+  }
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }

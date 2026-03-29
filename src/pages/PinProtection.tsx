@@ -1,120 +1,117 @@
-﻿import { useState } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Shield } from 'lucide-react';
+import logo from '../assets/logo.png';
+import pinshield from '../assets/pinshield.svg';
 
 export default function PinProtection() {
   const navigate = useNavigate();
   const [enabled, setEnabled] = useState(false);
-  const [pin, setPin] = useState(['', '', '', '']);
+  const [loading, setLoading] = useState(true);
 
-  const handleChange = (index: number, value: string) => {
-    if (value.length > 1) return;
-    const newPin = [...pin];
-    newPin[index] = value;
-    setPin(newPin);
-
-    if (value && index < 3) {
-      const nextInput = document.getElementById('pin-setup-' + (index + 1));      
-      nextInput?.focus();
-    }
-  };
+  useEffect(() => {
+    setTimeout(() => { setLoading(false); }, 400);
+  }, []);
 
   const handleComplete = async () => {
-    if (enabled) {
-      const enteredPin = pin.join('');
-      if (enteredPin.length < 4) {
-        alert('Please enter a 4-digit PIN');
-        return;
-      }
-
-      try {
-         await fetch('https://life-tag-backend-ahmedrashed2611-5674s-projects.vercel.app/api/save-medical-data', { 
+    try {
+      if (enabled) {
+        // Automatically assigning a default PIN or just saving the preference
+        await fetch(`${import.meta.env.VITE_API_URL}/api/save-medical-data`, { 
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ isPinProtected: true, pin: enteredPin }),      
+          body: JSON.stringify({ isPinProtected: true, pin: "0000" }), // Auto-assigned default PIN
         });
-      } catch (e) {
-        console.log(e);
+      } else {
+        await fetch(`${import.meta.env.VITE_API_URL}/api/save-medical-data`, { 
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ isPinProtected: false }),     
+        });
       }
+    } catch (e) {
+      console.log(e);
     }
     navigate('/dashboard');
   };
 
+  if (loading) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center min-h-screen bg-transparent">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-400"></div>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex-1 flex flex-col items-center bg-[#f8fbff] h-full relative">
-      <div className="w-full h-full overflow-y-auto p-6 pb-32 flex flex-col items-center">
-        <div className="mt-4 mb-4 flex justify-center">
-          <Shield size={32} className="text-blue-500 bg-blue-50 p-1.5 rounded-full" />
+    <div className="flex-1 flex flex-col items-center p-6 bg-transparent min-h-screen font-body pb-[10vh]">
+      <div className="w-full max-w-[400px] md:max-w-[480px] flex flex-col items-center transition-all duration-300">
+        
+        <div className="mb-6 flex justify-center mt-4">
+          <img src={logo} alt="LifeTag Logo" className="w-28 h-28 object-contain drop-shadow-sm" />
         </div>
 
-        <div className="flex gap-1.5 mb-10 justify-center">
-          <div className="w-8 h-1.5 bg-blue-500 rounded-full"></div>
-          <div className="w-8 h-1.5 bg-blue-500 rounded-full"></div>
-          <div className="w-8 h-1.5 bg-blue-500 rounded-full"></div>
-          <div className="w-8 h-1.5 bg-blue-500 rounded-full"></div>
-          <div className="w-8 h-1.5 bg-blue-500 rounded-full"></div>
+        <div className="flex gap-2 w-full max-w-xs mx-auto mb-10">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="flex-1 h-2 rounded-full bg-slate-200 overflow-hidden">
+              {i <= 3 && (
+                <div
+                  className="h-full rounded-full animate-[pulse_1s_ease-in-out_1]"
+                  style={{
+                    background: 'linear-gradient(333deg, hsl(216 100% 43%) 0%, hsl(196 93% 76%) 100%)',
+                    width: '100%'
+                  }}
+                />
+              )}
+            </div>
+          ))}
         </div>
 
-        <div className="relative mb-8 w-28 h-28 bg-gradient-to-br from-blue-100 to-blue-50 rounded-full flex items-center justify-center shadow-inner">
-          <Shield size={64} className="text-blue-500 drop-shadow-md" fill="currentColor" fillOpacity={0.1} />
-          <div className="absolute inset-x-0 bottom-6 flex justify-center">     
-             <div className="w-6 h-6 text-white font-bold bg-blue-500 rounded-full flex items-center justify-center text-sm">+</div>
+        <div className="mb-10 w-36 h-36 flex items-center justify-center drop-shadow-xl animate-in zoom-in slide-in-from-bottom-4 duration-500 ease-out">
+          <img src={pinshield} alt="PIN Protection Shield" className="w-full h-full object-contain" />
+        </div>
+
+        <div className="w-full bg-white rounded-[24px] p-6 shadow-[0px_10px_30px_rgba(150,170,200,0.1)] border border-slate-50 flex flex-col items-center">
+          
+          <div className="mb-4 text-[#0062ff]">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10" />
+            </svg>
           </div>
-        </div>
-
-        <div className="bg-white rounded-3xl p-6 shadow-md border border-blue-50 w-full mb-4 z-10 flex flex-col items-center">
-          <div className="mb-4">
-             <Shield className="text-blue-600 w-8 h-8 mx-auto" />
-          </div>
-          <h2 className="text-lg font-bold text-gray-800 text-center mb-3">PIN Protection</h2>
-          <p className="text-[11px] text-gray-500 text-center leading-relaxed mb-8 px-2">
+          
+          <h2 className="text-xl font-extrabold text-[#1f2937] text-center mb-3 tracking-tight">PIN Protection</h2>
+          
+          <p className="text-[13px] text-slate-500 text-center leading-relaxed mb-8 px-2">
             The Life Tag profile is protected by a PIN. Anyone who scans the bracelet must enter the PIN to view your emergency information. This ensures your privacy while allowing fast access in emergencies.
           </p>
 
-          <div className="w-full bg-blue-50 rounded-2xl p-4 flex justify-between items-center cursor-pointer transition-colors mb-4" onClick={() => setEnabled(!enabled)}>
-            <span className="text-sm font-semibold text-gray-800">Enable PIN Protection</span>
-            <div className={'w-10 h-6 rounded-full p-1 transition-colors duration-200 ease-in-out ' + (enabled ? 'bg-blue-600' : 'bg-gray-300')}>
-              <div className={'bg-white w-4 h-4 rounded-full shadow-sm transform transition-transform duration-200 ' + (enabled ? 'translate-x-4' : 'translate-x-0')} />
+          <div 
+             className="w-full bg-slate-50 border border-slate-100/60 rounded-[18px] p-4 flex justify-between items-center cursor-pointer transition-colors hover:bg-slate-100" 
+             onClick={() => setEnabled(!enabled)}
+          >
+            <span className="text-[14px] font-semibold text-slate-800">Enable PIN Protection</span>
+            <div className={'w-[44px] h-[24px] rounded-full p-1 transition-colors duration-200 ease-in-out ' + (enabled ? 'bg-[#0062ff]' : 'bg-slate-300')}>
+              <div className={'bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 ' + (enabled ? 'translate-x-[20px]' : 'translate-x-0')} />
             </div>
           </div>
 
-          {enabled && (
-            <div className="flex gap-3 justify-center mb-2 w-full animate-fade-in">
-              {pin.map((digit, i) => (
-                <input
-                  key={i}
-                  id={'pin-setup-' + i}
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  value={digit}
-                  onChange={(e) => handleChange(i, e.target.value)}
-                  className="w-12 h-14 border border-gray-200 rounded-xl text-center text-xl font-bold bg-gray-50 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
-                  maxLength={1}
-                />
-              ))}
-            </div>
-          )}
-
         </div>
 
-      </div>
-
-      <div className="absolute bottom-0 left-0 w-full p-6 bg-gradient-to-t from-[#f8fbff] via-[#f8fbff] to-transparent">
-        <div className="flex gap-4">
-          <button
-            onClick={() => navigate(-1)}
-            className="flex-1 bg-white text-gray-700 font-medium py-3 rounded-2xl border border-gray-200 shadow-sm hover:bg-gray-50 text-sm"
+        <div className="flex gap-4 w-full mt-6">
+          <button 
+            onClick={() => navigate(-1)} 
+            className="clay-button-white w-1/4"
           >
             Back
           </button>
-          <button
+          
+          <button 
             onClick={handleComplete}
-            className="flex-[2] bg-gradient-to-r from-blue-400 to-blue-600 text-white font-medium py-3 rounded-2xl shadow-md hover:from-blue-500 hover:to-blue-700 text-sm"
+            className="clay-button w-3/4"
           >
-            Finish Setup
+            Continue to Dashboard
           </button>
         </div>
+
       </div>
     </div>
   );
