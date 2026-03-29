@@ -1,4 +1,4 @@
-﻿import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, User, Layout, LogOut } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
@@ -19,7 +19,7 @@ export default function Settings() {
         }
     } catch(e) {}
 
-    fetch(`${import.meta.env.VITE_API_URL}/api/profile`)
+    fetch(`${import.meta.env.VITE_API_URL.replace(/\/$/, "")}/api/profile`)
       .then(res => res.json())
       .then(data => {
         if (data.success && data.profile) {

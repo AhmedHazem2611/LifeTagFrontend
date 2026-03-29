@@ -1,4 +1,4 @@
-﻿import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Eye, Settings, Plus, X } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import logo from '../assets/logo.png';
@@ -28,7 +28,7 @@ export default function Dashboard() {
         }
     } catch(e) {}
 
-    fetch(`${import.meta.env.VITE_API_URL}/api/profile`)
+    fetch(`${import.meta.env.VITE_API_URL.replace(/\/$/, "")}/api/profile`)
       .then(res => res.json())
       .then(data => {
         if (data.success && data.profile) {
@@ -59,7 +59,7 @@ export default function Dashboard() {
   const syncProfile = async (updatedProfile: any) => {
     setProfile(updatedProfile);
     try {
-        await fetch(`${import.meta.env.VITE_API_URL}/api/save-medical-data`, {
+        await fetch(`${import.meta.env.VITE_API_URL.replace(/\/$/, "")}/api/save-medical-data`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(updatedProfile)

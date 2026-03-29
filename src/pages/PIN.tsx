@@ -43,7 +43,7 @@ export default function PIN() {
     setError('');
 
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/verify-pin`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL.replace(/\/$/, "")}/api/verify-pin`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pin: enteredPin }),

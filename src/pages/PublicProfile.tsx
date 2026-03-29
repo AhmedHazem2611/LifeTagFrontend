@@ -1,4 +1,4 @@
-﻿import { Phone, HeartPulse, Pill, AlertTriangle, FileText, Droplet, Edit3 } from 'lucide-react';
+import { Phone, HeartPulse, Pill, AlertTriangle, FileText, Droplet, Edit3 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import logo from '../assets/logo.png';
@@ -17,7 +17,7 @@ export default function PublicProfile() {
         }
     } catch(e) {}
 
-    fetch(`${import.meta.env.VITE_API_URL}/api/profile`)
+    fetch(`${import.meta.env.VITE_API_URL.replace(/\/$/, "")}/api/profile`)
       .then(res => res.json())
       .then(data => {
         if (data.success && data.profile) {

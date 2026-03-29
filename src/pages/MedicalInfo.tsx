@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import logo from '../assets/logo.png';
@@ -85,7 +85,7 @@ export default function MedicalInfo() {
     const userId = "temp-user";
     const fetchMedicalInfo = async () => {
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/medical-data/` + userId);
+        const response = await fetch(`${import.meta.env.VITE_API_URL.replace(/\/$/, "")}/api/medical-data/` + userId);
         if (response.ok) {
           const data = await response.json();
           if (data && data.data) {
@@ -131,7 +131,7 @@ export default function MedicalInfo() {
 
     let userName = formData.fullName || 'Medical Profile';
     try {
-      await fetch(`${import.meta.env.VITE_API_URL}/api/save-medical-data`, {
+      await fetch(`${import.meta.env.VITE_API_URL.replace(/\/$/, "")}/api/save-medical-data`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 

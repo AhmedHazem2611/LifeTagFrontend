@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import logo from '../assets/logo.png';
 
@@ -14,7 +14,7 @@ export default function SignUp() {
     setError('');
 
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/signup`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL.replace(/\/$/, "")}/api/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),

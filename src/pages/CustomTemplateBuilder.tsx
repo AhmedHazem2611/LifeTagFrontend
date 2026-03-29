@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import logo from '../assets/logo.png';
@@ -106,7 +106,7 @@ export default function CustomTemplateBuilder() {
     setSuccess(false);
 
     try {
-      await fetch(`${import.meta.env.VITE_API_URL}/api/save-medical-data`, {
+      await fetch(`${import.meta.env.VITE_API_URL.replace(/\/$/, "")}/api/save-medical-data`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

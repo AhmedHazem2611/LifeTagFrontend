@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import logo from '../assets/logo.png';
 import pinshield from '../assets/pinshield.svg';
@@ -16,13 +16,13 @@ export default function PinProtection() {
     try {
       if (enabled) {
         // Automatically assigning a default PIN or just saving the preference
-        await fetch(`${import.meta.env.VITE_API_URL}/api/save-medical-data`, { 
+        await fetch(`${import.meta.env.VITE_API_URL.replace(/\/$/, "")}/api/save-medical-data`, { 
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ isPinProtected: true, pin: "0000" }), // Auto-assigned default PIN
         });
       } else {
-        await fetch(`${import.meta.env.VITE_API_URL}/api/save-medical-data`, { 
+        await fetch(`${import.meta.env.VITE_API_URL.replace(/\/$/, "")}/api/save-medical-data`, { 
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ isPinProtected: false }),     
