@@ -105,12 +105,16 @@ export default function CustomTemplateBuilder() {
     setSaving(true);
     setSuccess(false);
 
+    const userStr = localStorage.getItem('user');
+    const user = userStr ? JSON.parse(userStr) : null;
+    const userId = userStr && user ? (user.id || user._id) : "temp-user";
+
     try {
       await fetch(`${import.meta.env.VITE_API_URL.replace(/\/$/, "")}/api/save-medical-data`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: "temp-user",
+          userId: userId,
           templateType: 'Custom',
           fullName: fullName,
           customSections: sections

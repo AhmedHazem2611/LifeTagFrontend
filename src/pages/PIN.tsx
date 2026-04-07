@@ -65,32 +65,27 @@ export default function PIN() {
   };
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center p-6 bg-transparent min-h-screen font-body pb-[10vh]">
+    <div className="flex-1 flex flex-col items-center justify-center p-2 md:p-6 bg-transparent min-h-screen font-body pb-[10vh]">
 
-      <div className="w-full max-w-[340px] flex flex-col items-center">
+      <div className="w-full max-w-[550px] md:max-w-[360px] flex flex-col items-center">
 
         {/* Clay Card Content */}
-        <div className="clay-card relative w-full">
+        <div className="clay-card relative w-full py-6 px-3 md:px-8">
 
           {/* Logo inside card */}
-          {/* Logo -> Title: 16px */}
           <div className="mb-4 flex justify-center">
             <img src={logo} alt="LifeTag Logo" className="w-24 h-24 object-contain" />
           </div>
 
-          {/* Title -> Subtitle: 8px */}
-          <h2 className="text-[20px] font-sans font-bold text-slate-800 tracking-tight text-center mb-2">
+          <h2 className="text-[26px] font-sans font-bold text-slate-900 tracking-tight text-center mb-1">
             Enter LifeTag PIN
           </h2>
 
-          {/* Subtitle -> PIN inputs: 24px */}
-          <p className="text-[12px] text-slate-400 text-center mb-6 font-normal leading-relaxed whitespace-nowrap">
+          <p className="text-[12px] text-slate-400 text-center mb-4 font-normal leading-relaxed">
             Enter the 4-digit code found on the back of the bracelet
           </p>
 
-          {/* PIN Input Boxes */}
-          {/* gap-3 = 12px, PIN inputs -> Button: 24px */}
-          <div className="flex gap-3 justify-center mb-6 w-full">
+          <div className="flex gap-[12px] justify-center mb-6 w-full">
             {pin.map((digit, i) => (
               <input
                 key={i}

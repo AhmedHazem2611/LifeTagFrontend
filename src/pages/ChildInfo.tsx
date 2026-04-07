@@ -11,7 +11,7 @@ export default function ChildInfo() {
   
   const [formData, setFormData] = useState({
     fullName: '',
-    age: '',
+    dob: '',
     gender: '',
     address: '',
     emergencyContacts: [{ name: '', phone: '', relation: '' }],
@@ -44,17 +44,21 @@ export default function ChildInfo() {
     setSaving(true);
     setSuccess(false);
 
+    const userStr = localStorage.getItem('user');
+    const user = userStr ? JSON.parse(userStr) : null;
+    const userId = userStr && user ? (user.id || user._id) : "temp-user";
+
     let userName = formData.fullName || 'Child Profile';
     
-    // As per backend parsing: req.body.templateType === 'Child' extracts req.body.age, req.body.notes, req.body.emergencyContacts
+    // As per backend parsing: req.body.templateType === 'Child' extracts req.body.dob, req.body.notes, req.body.emergencyContacts
     const payload = { 
-        userId: "temp-user", 
+        userId: userId, 
         templateType: "Child", 
         fullName: userName,
-        age: formData.age,
+        dob: formData.dob,
         gender: formData.gender,
         address: formData.address,
-        notes: formData.address ? `Address: ${formData.address}\n\n${formData.notes}` : formData.notes,
+        notes: formData.notes,
         emergencyContacts: formData.emergencyContacts
     };
 
@@ -136,16 +140,20 @@ export default function ChildInfo() {
 
               <div className="flex gap-4">
                 <div className="flex-1">
-                  <label className="block text-[13px] font-medium text-slate-800 mb-1.5 ml-1">Age</label>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    name="age"
-                    placeholder="e.g 8"
-                    className="auth-input w-full"
-                    value={formData.age}
-                    onChange={handleChange}
-                  />
+                  <label className="block text-[13px] font-medium text-slate-800 mb-1.5 ml-1">Date of Birth</label>
+                  <div className="relative">
+                    <input
+                      type="date"
+                      name="dob"
+                      className="auth-input bg-white w-full pr-10"
+                      style={{ WebkitAppearance: 'none' }}
+                      value={formData.dob}
+                      onChange={handleChange as any}
+                    />
+                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none text-slate-400">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                    </div>
+                  </div>
                 </div>
                 <div className="flex-1">
                   <label className="block text-[13px] font-medium text-slate-800 mb-1.5 ml-1">Gender</label>

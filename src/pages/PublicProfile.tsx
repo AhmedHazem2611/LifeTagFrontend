@@ -9,15 +9,17 @@ export default function PublicProfile() {
 
   useEffect(() => {
     let userName = 'Unknown User';
+    let userId = '';
     try {
         const storedUser = localStorage.getItem('user');
         if (storedUser) {
             const parsed = JSON.parse(storedUser);
             if (parsed && parsed.fullName) userName = parsed.fullName;
+            userId = parsed?.id || parsed?._id || '';
         }
     } catch(e) {}
 
-    fetch(`${import.meta.env.VITE_API_URL.replace(/\/$/, "")}/api/profile`)
+    fetch(`${import.meta.env.VITE_API_URL.replace(/\/$/, "")}/api/profile?userId=${userId}`)
       .then(res => res.json())
       .then(data => {
         if (data.success && data.profile) {
@@ -49,6 +51,9 @@ export default function PublicProfile() {
 
   if (!profile) return <div className="p-6 text-center text-slate-500 font-medium">Loading Medical Data...</div>;
 
+  const dobAge = profile?.dob ? Math.floor((new Date().getTime() - new Date(profile.dob).getTime()) / 31557600000) : null;
+  const displayAge = (dobAge !== null && !isNaN(dobAge)) ? dobAge : profile?.age;
+
   return (
     <div className="flex-1 flex flex-col items-center bg-[#f8fbff] font-body min-h-screen relative pb-[12vh]">
       <div className="w-full max-w-[400px] md:max-w-4xl flex flex-col px-6 pt-8 pb-20">
@@ -61,56 +66,89 @@ export default function PublicProfile() {
           <div className="bg-[#fff1f2] text-[#f43f5e] text-[10px] font-extrabold px-3 py-1.5 rounded-full tracking-wider uppercase mb-2 border border-[#ffe4e6]">
             EMERGENCY PROFILE
           </div>
-          <h1 className="text-[26px] font-black text-[#1e293b] tracking-tight">{profile.fullName || 'Unknown User'}</h1>
+          {(profile.templateType === 'Medical' || !profile.templateType) && (
+            <h1 className="text-[26px] font-black text-[#1e293b] tracking-tight">{profile.fullName || 'Unknown User'}</h1>
+          )}
         </div>
 
         <div className="flex flex-col gap-4">
 
-          {/* Blood Type */}
-          {profile.bloodType && (
-            <div className="clay-section p-6 flex flex-col items-center">
-               <div className="flex items-center gap-2 text-[#475569] font-bold text-[14px] mb-2 w-full">
-                  <Droplet size={18} className="text-[#f43f5e]" strokeWidth={2.5} /> Blood Type       
-               </div>
-               <div className="text-[42px] font-black text-[#f43f5e] tracking-tight pb-2">{profile.bloodType}</div>
-            </div>
+          {/* Child Identity Section */}
+          {profile.templateType === 'Child' && (
+             <div className="clay-section p-6 flex flex-col items-center mb-2 border border-[#dbeafe] bg-gradient-to-b from-[#f8fbff] to-white">
+                <h1 className="text-[28px] font-black text-[#1e293b] tracking-tight mb-1">{profile.fullName || 'Unknown Child'}</h1>
+                {displayAge !== undefined && displayAge !== null && displayAge !== '' && (
+                  <div className="bg-blue-50 text-blue-600 font-bold text-[14px] px-4 py-1.5 rounded-full border border-blue-100 flex items-center gap-1.5 mt-2">
+                     Age: {displayAge}
+                  </div>
+                )}
+             </div>
           )}
 
-          {/* Medical Conditions */}
-          <div className="clay-section p-6">
-             <div className="flex items-center gap-2 text-[#475569] font-bold text-[14px] mb-3">
-                <HeartPulse size={18} className="text-[#f43f5e]" strokeWidth={2.5} /> Medical Conditions
-             </div>
-             <div className="flex flex-wrap gap-2">
-                {profile.medicalConditions?.length > 0 ? profile.medicalConditions.map((cond: string, idx: number) => (
-                    <span key={idx} className="bg-[#fff1f2] text-[#e11d48] text-[12px] font-bold px-4 py-1.5 rounded-full border border-[#ffe4e6]">{cond}</span>
-                )) : <span className="text-[12px] text-slate-400 font-medium">None reported</span>}
-             </div>
-          </div>
+          {(profile.templateType === 'Medical' || !profile.templateType) && (
+            <>
+              {/* Blood Type */}
+              {profile.bloodType && (
+                <div className="clay-section p-6 flex flex-col items-center">
+                   <div className="flex items-center gap-2 text-[#475569] font-bold text-[14px] mb-2 w-full">
+                      <Droplet size={18} className="text-[#f43f5e]" strokeWidth={2.5} /> Blood Type       
+                   </div>
+                   <div className="text-[42px] font-black text-[#f43f5e] tracking-tight pb-2">{profile.bloodType}</div>
+                </div>
+              )}
 
-          {/* Medications */}
-          <div className="clay-section p-6">
-             <div className="flex items-center gap-2 text-[#475569] font-bold text-[14px] mb-3">
-                <Pill size={18} className="text-[#3b82f6]" strokeWidth={2.5} /> Medications        
-             </div>
-             <div className="flex flex-wrap gap-2">
-                {profile.medications?.length > 0 ? profile.medications.map((med: string, idx: number) => (
-                    <span key={idx} className="bg-[#eff6ff] text-[#2563eb] text-[12px] font-bold px-4 py-1.5 rounded-full border border-[#dbeafe]">{med}</span>
-                )) : <span className="text-[12px] text-slate-400 font-medium">None reported</span>}
-             </div>
-          </div>
+              {/* Medical Conditions */}
+              <div className="clay-section p-6">
+                 <div className="flex items-center gap-2 text-[#475569] font-bold text-[14px] mb-3">
+                    <HeartPulse size={18} className="text-[#f43f5e]" strokeWidth={2.5} /> Medical Conditions
+                 </div>
+                 <div className="flex flex-wrap gap-2">
+                    {profile.medicalConditions?.length > 0 ? profile.medicalConditions.map((cond: string, idx: number) => (
+                        <span key={idx} className="bg-[#fff1f2] text-[#e11d48] text-[12px] font-bold px-4 py-1.5 rounded-full border border-[#ffe4e6]">{cond}</span>
+                    )) : <span className="text-[12px] text-slate-400 font-medium">None reported</span>}
+                 </div>
+              </div>
 
-          {/* Allergies */}
-          <div className="clay-section p-6">
-             <div className="flex items-center gap-2 text-[#475569] font-bold text-[14px] mb-3">
-                <AlertTriangle size={18} className="text-[#f43f5e]" strokeWidth={2.5} /> Allergies
-             </div>
-             <div className="flex flex-wrap gap-2">
-                {profile.allergies?.length > 0 ? profile.allergies.map((allergy: string, idx: number) => (
-                    <span key={idx} className="bg-[#fff1f2] text-[#e11d48] text-[12px] font-bold px-4 py-1.5 rounded-full border border-[#ffe4e6]">{allergy}</span>
-                )) : <span className="text-[12px] text-slate-400 font-medium">None reported</span>}
-             </div>
-          </div>
+              {/* Medications */}
+              <div className="clay-section p-6">
+                 <div className="flex items-center gap-2 text-[#475569] font-bold text-[14px] mb-3">
+                    <Pill size={18} className="text-[#3b82f6]" strokeWidth={2.5} /> Medications        
+                 </div>
+                 <div className="flex flex-wrap gap-2">
+                    {profile.medications?.length > 0 ? profile.medications.map((med: string, idx: number) => (
+                        <span key={idx} className="bg-[#eff6ff] text-[#2563eb] text-[12px] font-bold px-4 py-1.5 rounded-full border border-[#dbeafe]">{med}</span>
+                    )) : <span className="text-[12px] text-slate-400 font-medium">None reported</span>}
+                 </div>
+              </div>
+
+              {/* Allergies */}
+              <div className="clay-section p-6">
+                 <div className="flex items-center gap-2 text-[#475569] font-bold text-[14px] mb-3">
+                    <AlertTriangle size={18} className="text-[#f43f5e]" strokeWidth={2.5} /> Allergies
+                 </div>
+                 <div className="flex flex-wrap gap-2">
+                    {profile.allergies?.length > 0 ? profile.allergies.map((allergy: string, idx: number) => (
+                        <span key={idx} className="bg-[#fff1f2] text-[#e11d48] text-[12px] font-bold px-4 py-1.5 rounded-full border border-[#ffe4e6]">{allergy}</span>
+                    )) : <span className="text-[12px] text-slate-400 font-medium">None reported</span>}
+                 </div>
+              </div>
+            </>
+          )}
+
+          {/* Address */}
+          {(profile.address || profile.templateType === 'Child') && (
+            <div className="clay-section p-6 flex flex-col">
+              <div className="flex items-center gap-2 text-[#475569] font-bold text-[14px] mb-3">
+                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                 Address
+              </div>
+              {profile.address ? (
+                <p className="text-[14px] font-medium text-slate-700 bg-[#f4f6fb] px-4 py-3 rounded-xl border border-slate-100 shadow-sm whitespace-pre-wrap">{profile.address}</p>
+              ) : (
+                <p className="text-[13px] text-slate-400 font-medium">No address provided</p>
+              )}
+            </div>
+          )}
 
           {/* Emergency Contacts */}
           <div className="clay-section p-6">

@@ -82,7 +82,9 @@ export default function MedicalInfo() {
   const [uiState, setUiState] = useState({ showContacts: false });
 
   useEffect(() => {
-    const userId = "temp-user";
+    const userStr = localStorage.getItem('user');
+    const user = userStr ? JSON.parse(userStr) : null;
+    const userId = userStr && user ? (user.id || user._id) : "temp-user";
     const fetchMedicalInfo = async () => {
       try {
         const response = await fetch(`${import.meta.env.VITE_API_URL.replace(/\/$/, "")}/api/medical-data/` + userId);
@@ -129,13 +131,17 @@ export default function MedicalInfo() {
     setSaving(true);
     setSuccess(false);
 
+    const userStr = localStorage.getItem('user');
+    const user = userStr ? JSON.parse(userStr) : null;
+    const userId = userStr && user ? (user.id || user._id) : "temp-user";
+
     let userName = formData.fullName || 'Medical Profile';
     try {
       await fetch(`${import.meta.env.VITE_API_URL.replace(/\/$/, "")}/api/save-medical-data`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-           userId: "temp-user", 
+           userId: userId, 
            templateType: "Medical", 
            data: { ...formData, gender: formData.gender }, 
            fullName: userName 

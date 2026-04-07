@@ -74,7 +74,7 @@ export default function SignUp() {
           </div>
 
           {/* Form */}
-          <form onSubmit={handleSignup} className="w-full flex flex-col gap-5">
+          <form onSubmit={handleSignup} className="w-full flex flex-col gap-5" autoComplete="off">
             <div>
               <label className="block text-[13px] font-medium text-slate-800 mb-2 ml-1">Full Name</label>
               <input
@@ -84,6 +84,8 @@ export default function SignUp() {
                 className="auth-input"
                 value={formData.fullName}
                 onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                autoComplete="off"
+                data-lpignore="true"
               />
             </div>
 
@@ -96,6 +98,8 @@ export default function SignUp() {
                 className="auth-input"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                autoComplete="off"
+                data-lpignore="true"
               />
             </div>
 
@@ -108,6 +112,8 @@ export default function SignUp() {
                 className="auth-input tracking-widest"
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                autoComplete="new-password"
+                data-lpignore="true"
               />
             </div>
 
