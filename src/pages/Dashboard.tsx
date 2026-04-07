@@ -97,10 +97,61 @@ export default function Dashboard() {
 
   const handleSaveEdit = () => {
     if (!profile || !editingItem || !editVal) return;
+    if (editingItem.field === 'customSections') {
+        const { sectionIdx, index: itemIdx } = editingItem as any;
+        const newSections = [...(profile.customSections || [])];
+        const newItems = [...(newSections[sectionIdx].items || [])];
+        newItems[itemIdx] = editVal;
+        newSections[sectionIdx] = { ...newSections[sectionIdx], items: newItems };
+        syncProfile({ ...profile, customSections: newSections });
+        setEditingItem(null);
+        return;
+    }
     let newItems = [...(profile[editingItem.field] || [])];
     newItems[editingItem.index] = editVal;
     syncProfile({ ...profile, [editingItem.field]: newItems });
     setEditingItem(null);
+  };
+
+  const removeCustomItem = (sectionIdx: number, itemIdx: number) => {
+    if (!profile) return;
+    const newSections = [...(profile.customSections || [])];
+    const newItems = [...newSections[sectionIdx].items];
+    newItems.splice(itemIdx, 1);
+    newSections[sectionIdx] = { ...newSections[sectionIdx], items: newItems };
+    syncProfile({ ...profile, customSections: newSections });
+  };
+
+  const handleSaveAddCustomItem = (sectionIdx: number, val: string) => {
+    if (!profile) return;
+    const newSections = [...(profile.customSections || [])];
+    const newItems = [...(newSections[sectionIdx].items || [])];
+    newItems.push(val);
+    newSections[sectionIdx] = { ...newSections[sectionIdx], items: newItems };
+    syncProfile({ ...profile, customSections: newSections });
+    setAddingTo(null);
+  };
+
+  const handleSaveCustomSectionTitle = (sectionIdx: number, val: string) => {
+    if (!profile) return;
+    const newSections = [...(profile.customSections || [])];
+    newSections[sectionIdx] = { ...newSections[sectionIdx], name: val };
+    syncProfile({ ...profile, customSections: newSections });
+    setEditingItem(null);
+  };
+
+  const addNewCustomSection = () => {
+    if (!profile) return;
+    const newSections = [...(profile.customSections || [])];
+    newSections.push({ name: 'New Section', items: [] });
+    syncProfile({ ...profile, customSections: newSections });
+  };
+
+  const deleteCustomSection = (sectionIdx: number) => {
+    if (!profile) return;
+    const newSections = [...(profile.customSections || [])];
+    newSections.splice(sectionIdx, 1);
+    syncProfile({ ...profile, customSections: newSections });
   };
 
   const InlineInput = ({ onSave, onCancel, isContact, initialVal }: any) => {
@@ -295,6 +346,7 @@ export default function Dashboard() {
           )}
 
           {/* Emergency Contacts */}
+          {profile.templateType !== 'Custom' && (
           <div className="clay-section p-5 w-full">
             <div className="flex justify-between items-center mb-4">
               <div className="flex items-center gap-2.5 font-bold text-slate-800 text-[16px]">
@@ -329,9 +381,10 @@ export default function Dashboard() {
               )}
             </div>
           </div>
+          )}
           
           {/* Address */}
-          {(profile.address || profile.templateType === 'Child') && (
+          {(profile.address || profile.templateType === 'Child') && profile.templateType !== 'Custom' && (
             <div className="clay-section p-5 w-full flex flex-col">
               <div className="flex items-center gap-2.5 font-bold text-slate-800 text-[16px] mb-3">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
@@ -363,27 +416,79 @@ export default function Dashboard() {
           )}
 
           {/* Custom Sections */}
-          {profile.customSections?.map((sec: any, idx: number) => (
+          {profile.templateType === 'Custom' && profile.customSections?.map((sec: any, idx: number) => {
+            const getIconForTitle = (title: string) => {
+              const t = (title || '').toLowerCase();
+              if (t.includes('medic') || t.includes('health') || t.includes('condition') || t.includes('surgery')) return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f87171" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20.42 4.58a5.4 5.4 0 0 0-7.65 0l-.77.78-.77-.78a5.4 5.4 0 0 0-7.65 0C1.46 6.7 1.33 10.28 4 13l8 8 8-8c2.67-2.72 2.54-6.3.42-8.42z"></path></svg>;
+              if (t.includes('pill') || t.includes('medication') || t.includes('drug') || t.includes('pharm')) return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"/><path d="m8.5 8.5 7 7"/></svg>;
+              if (t.includes('allerg')) return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f87171" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>;
+              if (t.includes('contact') || t.includes('emergency') || t.includes('phone') || t.includes('call')) return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>;
+              if (t.includes('address') || t.includes('location') || t.includes('place') || t.includes('home') || t.includes('city')) return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>;
+              if (t.includes('doctor') || t.includes('physician') || t.includes('specialist') || t.includes('clinic') || t.includes('hospital')) return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#06b6d4" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3"/><path d="M8 15v1a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6v-4"/><circle cx="20" cy="10" r="2"/></svg>;
+              if (t.includes('blood') || t.includes('vital') || t.includes('measure')) return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#e11d48" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/></svg>;
+              if (t.includes('diet') || t.includes('food') || t.includes('nutrition') || t.includes('eat')) return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20.94c1.5 0 2.75 1.06 4 1.06 3 0 6-8 6-12.22A4.91 4.91 0 0 0 17 5c-2.22 0-4 1.44-5 2-1-.56-2.78-2-5-2a4.9 4.9 0 0 0-5 4.78C2 14 5 22 8 22c1.25 0 2.5-1.06 4-1.06Z"/><path d="M10 2c1 .5 2 2 2 5"/></svg>;
+              if (t.includes('insurance') || t.includes('policy') || t.includes('legal') || t.includes('protect')) return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>;
+              if (t.includes('history') || t.includes('past') || t.includes('previous') || t.includes('timeline')) return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>;
+              if (t.includes('note') || t.includes('additional') || t.includes('info') || t.includes('detail')) return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>;
+              return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>;
+            };
+            return (
             <div key={`custom-${idx}`} className="clay-section p-5 w-full">
               <div className="flex justify-between items-center mb-4">
-                <div className="flex items-center gap-2.5 font-bold text-slate-800 text-[16px]">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
-                  {sec.name}
+                <div onClick={() => { setEditingItem({field: 'custom-title', index: idx}); setEditVal(sec.name); }} className="flex items-center gap-2.5 font-bold text-slate-800 text-[16px] cursor-pointer hover:bg-slate-50 px-2 py-1 rounded-md transition-colors -ml-2">
+                  {getIconForTitle(editingItem?.field === 'custom-title' && editingItem.index === idx ? editVal : sec.name)}
+                  {editingItem?.field === 'custom-title' && editingItem.index === idx ? (
+                      <input 
+                         autoFocus 
+                         value={editVal}
+                         onChange={e=>setEditVal(e.target.value)}
+                         onBlur={() => handleSaveCustomSectionTitle(idx, editVal)}
+                         onKeyDown={(e) => { if(e.key==='Enter') handleSaveCustomSectionTitle(idx, editVal); }}
+                         className="auth-input py-1 text-[15px] max-w-[150px] bg-white text-slate-800 focus:outline-none" 
+                      />
+                  ) : sec.name}
+                </div>
+                <div className="flex items-center gap-1">
+                  <button onClick={() => setAddingTo(`custom-add-${idx}`)} className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center hover:bg-blue-100 transition-colors shrink-0 outline-none">
+                    <Plus strokeWidth={2.5} size={16} />
+                  </button>
+                  <button onClick={(e) => { e.stopPropagation(); deleteCustomSection(idx); }} className="w-8 h-8 rounded-full bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-100 transition-colors shrink-0 outline-none">
+                    <X strokeWidth={2.5} size={16} />
+                  </button>
                 </div>
               </div>
               <div className="space-y-2">
-                {sec.items?.length > 0 ? sec.items.map((item: string, itemIdx: number) => (
-                  <div key={itemIdx} className="flex justify-between items-center bg-[#f4f6fb] px-4 py-3 rounded-xl text-[14px] font-medium text-[#1a1c1e]">
-                    {item}
+                {addingTo === `custom-add-${idx}` && (
+                  <div className="mb-3">
+                    <InlineInput onSave={(v: string) => handleSaveAddCustomItem(idx, v)} onCancel={() => setAddingTo(null)} />
                   </div>
+                )}
+                {sec.items?.length > 0 ? sec.items.map((item: string, itemIdx: number) => (
+                  editingItem?.field === 'customSections' && (editingItem as any)?.sectionIdx === idx && editingItem?.index === itemIdx ? (
+                     <InlineInput key={itemIdx} initialVal={item} onSave={handleSaveEdit} onCancel={() => setEditingItem(null)} />
+                  ) : (
+                     <div key={itemIdx} onClick={() => { setEditingItem({field: 'customSections', sectionIdx: idx, index: itemIdx} as any); setEditVal(item); }} className="flex justify-between items-center bg-[#f4f6fb] px-4 py-3 rounded-xl text-[14px] font-medium text-slate-700 cursor-pointer hover:bg-slate-100 transition-colors group">
+                       {item} <button onClick={(e) => { e.stopPropagation(); removeCustomItem(idx, itemIdx); }} className="w-6 h-6 rounded-full bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-100 transition-colors opacity-0 group-hover:opacity-100 shrink-0"><X size={12} /></button>
+                     </div>
+                  )
                 )) : <p className="text-[13px] text-slate-400 font-medium text-center py-6">No items</p>}
               </div>
             </div>
-          ))}
+          )})}
+
+          {profile.templateType === 'Custom' && (
+             <div onClick={addNewCustomSection} className="clay-section p-5 w-full border-2 border-dashed border-blue-200 bg-blue-50/50 flex flex-col items-center justify-center cursor-pointer hover:bg-blue-50 transition-colors min-h-[140px] shadow-none group">
+                <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                   <Plus strokeWidth={2.5} size={20} />
+                </div>
+                <span className="text-[14px] font-bold text-blue-600">Add a new section</span>
+             </div>
+          )}
 
         </div>
 
         {/* Notes */}
+        {profile.templateType !== 'Custom' && (
         <div className="template-card p-5 w-full flex flex-col border border-white/60">
           <div className="flex justify-between items-center mb-3">
             <div className="flex items-center gap-2.5 font-bold text-slate-800 text-[15px]">
@@ -414,6 +519,7 @@ export default function Dashboard() {
             </div>
           )}
         </div>
+        )}
 
       </div>
     </div>
