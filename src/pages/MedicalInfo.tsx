@@ -219,19 +219,13 @@ export default function MedicalInfo() {
               <div className="flex gap-4">
                 <div className="flex-1">
                   <label className="block text-[13px] font-medium text-slate-800 mb-1.5 ml-1">Date of Birth</label>
-                  <div className="relative">
-                    <input
-                      type="date"
-                      name="dob"
-                      className="auth-input bg-white w-full pr-10"
-                      style={{ WebkitAppearance: 'none' }}
-                      value={formData.dob}
-                      onChange={handleChange as any}
-                    />
-                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none text-slate-400">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-                    </div>
-                  </div>
+                  <input
+                    type="date"
+                    name="dob"
+                    className="auth-input bg-white w-full"
+                    value={formData.dob}
+                    onChange={handleChange as any}
+                  />
                 </div>
 
                 <div className="flex-1">

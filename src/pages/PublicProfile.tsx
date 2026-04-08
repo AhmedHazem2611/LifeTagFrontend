@@ -8,45 +8,57 @@ export default function PublicProfile() {
   const [profile, setProfile] = useState<any>(null);
 
   useEffect(() => {
-    let userName = 'Unknown User';
-    let userId = '';
-    try {
-        const storedUser = localStorage.getItem('user');
-        if (storedUser) {
-            const parsed = JSON.parse(storedUser);
-            if (parsed && parsed.fullName) userName = parsed.fullName;
-            userId = parsed?.id || parsed?._id || '';
-        }
-    } catch(e) {}
+    const fetchProfile = () => {
+      let userName = 'Unknown User';
+      let userId = '';
+      try {
+          const storedUser = localStorage.getItem('user');
+          if (storedUser) {
+              const parsed = JSON.parse(storedUser);
+              if (parsed && parsed.fullName) userName = parsed.fullName;
+              userId = parsed?.id || parsed?._id || '';
+          }
+      } catch(e) {}
 
-    fetch(`${import.meta.env.VITE_API_URL.replace(/\/$/, "")}/api/profile?userId=${userId}`)
-      .then(res => res.json())
-      .then(data => {
-        if (data.success && data.profile) {
-          setProfile({ ...data.profile, fullName: data.profile.fullName || userName });
-        } else {
+      fetch(`${import.meta.env.VITE_API_URL.replace(/\/$/, "")}/api/profile?userId=${userId}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.success && data.profile) {
+            setProfile({ ...data.profile, fullName: data.profile.fullName || userName });
+          } else {
+            setProfile({
+              fullName: userName,
+              bloodType: 'A+',
+              medicalConditions: ['Diabetes', 'Asthma'],
+              medications: ['Ibuprofen', 'Panadol'],
+              allergies: ['Cheese', 'Peanuts'],
+              emergencyContacts: [{ name: 'Mohamed Mostafa', type: 'brother', phone: '01062558066' }],
+              notes: 'Is lactose intolerant'
+            });
+          }
+        })
+        .catch(() => {
           setProfile({
-            fullName: userName,
-            bloodType: 'A+',
-            medicalConditions: ['Diabetes', 'Asthma'],
-            medications: ['Ibuprofen', 'Panadol'],
-            allergies: ['Cheese', 'Peanuts'],
-            emergencyContacts: [{ name: 'Mohamed Mostafa', type: 'brother', phone: '01062558066' }],
-            notes: 'Is lactose intolerant'
+              fullName: userName,
+              bloodType: 'A+',
+              medicalConditions: ['Diabetes', 'Asthma'],
+              medications: ['Ibuprofen', 'Panadol'],
+              allergies: ['Cheese', 'Peanuts'],
+              emergencyContacts: [{ name: 'Mohamed Mostafa', type: 'brother', phone: '01062558066' }],
+              notes: 'Is lactose intolerant'
           });
-        }
-      })
-      .catch(() => {
-        setProfile({
-            fullName: userName,
-            bloodType: 'A+',
-            medicalConditions: ['Diabetes', 'Asthma'],
-            medications: ['Ibuprofen', 'Panadol'],
-            allergies: ['Cheese', 'Peanuts'],
-            emergencyContacts: [{ name: 'Mohamed Mostafa', type: 'brother', phone: '01062558066' }],
-            notes: 'Is lactose intolerant'
         });
-      });
+    };
+
+    fetchProfile();
+
+    const handleStorageChange = (e: StorageEvent) => {
+       if (e.key === 'previewUpdate') {
+           fetchProfile();
+       }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
   if (!profile) return <div className="p-6 text-center text-slate-500 font-medium">Loading Medical Data...</div>;

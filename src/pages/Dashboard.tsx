@@ -75,6 +75,7 @@ export default function Dashboard() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({...updatedProfile, userId})
         });
+        localStorage.setItem('previewUpdate', Date.now().toString());
     } catch(err) {
         console.error('Failed to sync', err);
     }
@@ -95,20 +96,20 @@ export default function Dashboard() {
     setAddingTo(null);
   };
 
-  const handleSaveEdit = () => {
-    if (!profile || !editingItem || !editVal) return;
+  const handleSaveEdit = (newVal: any) => {
+    if (!profile || !editingItem || !newVal) return;
     if (editingItem.field === 'customSections') {
         const { sectionIdx, index: itemIdx } = editingItem as any;
         const newSections = [...(profile.customSections || [])];
         const newItems = [...(newSections[sectionIdx].items || [])];
-        newItems[itemIdx] = editVal;
+        newItems[itemIdx] = newVal;
         newSections[sectionIdx] = { ...newSections[sectionIdx], items: newItems };
         syncProfile({ ...profile, customSections: newSections });
         setEditingItem(null);
         return;
     }
     let newItems = [...(profile[editingItem.field] || [])];
-    newItems[editingItem.index] = editVal;
+    newItems[editingItem.index] = newVal;
     syncProfile({ ...profile, [editingItem.field]: newItems });
     setEditingItem(null);
   };
