@@ -11,33 +11,36 @@ export default function Settings() {
     let userName = 'Unknown User';
     let userEmail = '';
     try {
-        const storedUser = localStorage.getItem('user');
-        if (storedUser) {
-            const parsed = JSON.parse(storedUser);
-            if (parsed && parsed.fullName) userName = parsed.fullName;
-            if (parsed && parsed.email) userEmail = parsed.email;
-        }
-    } catch(e) {}
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        const parsed = JSON.parse(storedUser);
+        if (parsed && parsed.fullName) userName = parsed.fullName;
+        if (parsed && parsed.email) userEmail = parsed.email;
+      }
+    } catch (e) { }
 
-    fetch(`${import.meta.env.VITE_API_URL.replace(/\/$/, "")}/api/profile`)
-      .then(res => res.json())
-      .then(data => {
-        if (data.success && data.profile) {
-          setProfile({ ...data.profile, fullName: data.profile.fullName || userName, email: userEmail });
-          setPinEnabled(!!data.profile.isPinProtected);
-        } else {
+    const userId = JSON.parse(localStorage.getItem('user') || '{}').id;
+    if (userId) {
+      fetch(`${import.meta.env.VITE_API_URL.replace(/\/$/, "")}/api/profile?userId=${userId}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.success && data.data) {
+            setProfile({ ...data.data, fullName: data.data.fullName || userName, email: userEmail });
+            setPinEnabled(!!data.data.isPinProtected);
+          } else {
             setProfile({ fullName: userName, email: userEmail });
-        }
-      })
-      .catch(() => {
+          }
+        })
+        .catch(() => {
           setProfile({ fullName: userName, email: userEmail });
-      });
+        });
+    }
   }, []);
 
   return (
     <div className="flex-1 flex flex-col items-center bg-[#f8fbff] font-body min-h-screen relative pb-[12vh]">
       <div className="w-full max-w-[400px] md:max-w-4xl flex flex-col px-6 pt-10">
-        
+
         {/* Header */}
         <div className="flex items-center gap-4 mb-8">
           <button onClick={() => navigate(-1)} className="w-[38px] h-[38px] rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-700 hover:bg-slate-50 shadow-sm transition-colors">
@@ -47,7 +50,7 @@ export default function Settings() {
         </div>
 
         <div className="flex flex-col gap-5">
-          
+
           {/* Account */}
           <div className="clay-section p-6 flex flex-col gap-4 w-full">
             <div className="flex items-center gap-2.5 text-[#1e293b] font-bold text-[15px] mb-1">
@@ -66,12 +69,12 @@ export default function Settings() {
           {/* Security */}
           <div className="clay-section p-6 flex flex-col gap-4 w-full">
             <div className="flex items-center gap-2.5 text-[#1e293b] font-bold text-[15px] mb-2">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0062ff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></svg>
-               Security
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0062ff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /></svg>
+              Security
             </div>
             <div className="flex justify-between items-center text-[14px] text-slate-800 font-bold mt-1">
               <span>PIN Protection</span>
-              <div 
+              <div
                 className={`w-[52px] h-[30px] rounded-full p-1 cursor-pointer transition-colors duration-300 ease-in-out flex items-center shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)] ${pinEnabled ? 'bg-[#0062ff]' : 'bg-slate-200'}`}
                 onClick={() => setPinEnabled(!pinEnabled)}
               >
