@@ -1,10 +1,7 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Search, Home, AlertCircle } from 'lucide-react';
+import { Search, AlertCircle } from 'lucide-react';
 import logo from '../assets/logo.png';
 
 export default function NotFound() {
-  const navigate = useNavigate();
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-6 bg-[#f8fbff] min-h-screen font-body relative overflow-hidden">

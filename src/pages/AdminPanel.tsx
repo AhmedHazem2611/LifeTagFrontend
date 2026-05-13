@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Tag, Users, Trash2, Link, Unlink, Shield, ShieldOff, RotateCcw, Plus, ExternalLink, Mail, User as UserIcon, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Tag, Users, Trash2, Unlink, Shield, ShieldOff, RotateCcw, ExternalLink, User as UserIcon, X } from 'lucide-react';
 import logo from '../assets/logo.png';
 
 interface AdminTag {
