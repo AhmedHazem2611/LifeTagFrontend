@@ -84,8 +84,13 @@ export default function MedicalInfo() {
   useEffect(() => {
     const userStr = localStorage.getItem('user');
     const user = userStr ? JSON.parse(userStr) : null;
-    const userId = userStr && user ? (user.id || user._id) : "temp-user";
+    const userId = userStr && user ? user.id : null;
+    
     const fetchMedicalInfo = async () => {
+      if (!userId) {
+        setLoading(false);
+        return;
+      }
       try {
         const response = await fetch(`${import.meta.env.VITE_API_URL.replace(/\/$/, "")}/api/medical-data/` + userId);
         if (response.ok) {
@@ -99,7 +104,7 @@ export default function MedicalInfo() {
                 bloodType: data.data.bloodType || '',
                 allergies: safeJoin(data.data.allergies),
                 medications: safeJoin(data.data.medications),
-                conditions: safeJoin(data.data.conditions),
+                conditions: safeJoin(data.data.medicalConditions),
                 emergencyContacts: data.data.emergencyContacts?.length ? data.data.emergencyContacts : [{ name: '', phone: '', relation: '' }],
                 notes: data.data.notes || ''
              });
@@ -133,9 +138,16 @@ export default function MedicalInfo() {
 
     const userStr = localStorage.getItem('user');
     const user = userStr ? JSON.parse(userStr) : null;
-    const userId = userStr && user ? (user.id || user._id) : "temp-user";
+    const userId = userStr && user ? user.id : null;
 
-    let userName = formData.fullName || 'Medical Profile';
+    if (!userId) {
+      console.error("No user ID found");
+      setSaving(false);
+      return;
+    }
+
+    const safeSplit = (str: string) => str.split(',').map(t => t.trim()).filter(Boolean);
+
     try {
       await fetch(`${import.meta.env.VITE_API_URL.replace(/\/$/, "")}/api/save-medical-data`, {
         method: 'POST',
@@ -143,8 +155,18 @@ export default function MedicalInfo() {
         body: JSON.stringify({ 
            userId: userId, 
            templateType: "Medical", 
-           data: { ...formData, gender: formData.gender }, 
-           fullName: userName 
+           fullName: formData.fullName,
+           dob: formData.dob,
+           bloodType: formData.bloodType,
+           medicalConditions: safeSplit(formData.conditions),
+           medications: safeSplit(formData.medications),
+           allergies: safeSplit(formData.allergies),
+           emergencyContacts: formData.emergencyContacts.filter(c => c.name).map(c => ({
+             name: c.name,
+             phoneNumber: c.phone,
+             relation: c.relation
+           })),
+           notes: formData.notes
         })
       });
 

@@ -12,6 +12,9 @@ import Settings from './pages/Settings';
 import PublicProfile from './pages/PublicProfile';
 import LinkTag from './pages/LinkTag';
 import LocationHistory from './pages/LocationHistory';
+import QRHandler from './pages/QRHandler';
+import AdminPanel from './pages/AdminPanel';
+import NotFound from './pages/NotFound';
 
 function App() {
   return (
@@ -22,7 +25,7 @@ function App() {
         {/* Responsive Content Container */}
         <div className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col">
           <Routes>
-          <Route path="/" element={<Navigate to="/pin" replace />} />
+          <Route path="/" element={<QRHandler />} />
           <Route path="/pin" element={<PIN />} />
           <Route path="/signin" element={<SignIn />} />
           <Route path="/signup" element={<SignUp />} />
@@ -34,8 +37,12 @@ function App() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/public-profile" element={<PublicProfile />} />
+          <Route path="/public-profile/:guid" element={<PublicProfile />} />
           <Route path="/link-tag" element={<LinkTag />} />
           <Route path="/location-history" element={<LocationHistory />} />
+          <Route path="/admin" element={<AdminPanel />} />
+          <Route path="/404" element={<NotFound />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </div>
 

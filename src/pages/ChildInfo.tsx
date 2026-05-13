@@ -59,7 +59,11 @@ export default function ChildInfo() {
         gender: formData.gender,
         address: formData.address,
         notes: formData.notes,
-        emergencyContacts: formData.emergencyContacts
+        emergencyContacts: formData.emergencyContacts.map(c => ({
+          name: c.name,
+          phoneNumber: c.phone,
+          relation: c.relation
+        }))
     };
 
     try {

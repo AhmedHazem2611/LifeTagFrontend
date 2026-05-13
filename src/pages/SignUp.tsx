@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import logo from '../assets/logo.png';
 
@@ -7,6 +7,14 @@ export default function SignUp() {
   const [formData, setFormData] = useState({ fullName: '', email: '', password: '' });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Route guard: Ensure onboarding starts from a verified tag scan
+  useEffect(() => {
+    const pendingGuid = sessionStorage.getItem('pendingTagGuid');
+    if (!pendingGuid) {
+      navigate('/');
+    }
+  }, [navigate]);
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,7 +29,23 @@ export default function SignUp() {
       });
       const data = await res.json();
       if (res.ok && data.success) {
-        localStorage.setItem('user', JSON.stringify(data.user));
+        // Backend returns user in data.data
+        localStorage.setItem('user', JSON.stringify(data.data));
+        
+        // Handle Tag Linking
+        const pendingGuid = sessionStorage.getItem('pendingTagGuid');
+        const pendingPin = sessionStorage.getItem('pendingTagPin');
+        
+        if (pendingGuid && pendingPin) {
+          await fetch(`${import.meta.env.VITE_API_URL.replace(/\/$/, "")}/api/link-tag?userId=${data.data.id}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ guid: pendingGuid, pin: pendingPin }),
+          });
+          sessionStorage.removeItem('pendingTagGuid');
+          sessionStorage.removeItem('pendingTagPin');
+        }
+
         navigate('/choose-template');
       } else {
         setError(data.message || 'Signup failed');

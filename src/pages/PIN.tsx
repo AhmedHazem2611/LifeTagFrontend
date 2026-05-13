@@ -1,5 +1,5 @@
-import { useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useRef, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import logo from '../assets/logo.png';
 
 export default function PIN() {
@@ -7,6 +7,15 @@ export default function PIN() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const guid = searchParams.get('guid');
+
+  useEffect(() => {
+    if (!guid) {
+      navigate('/404');
+    }
+  }, [guid, navigate]);
+
   const inputRefs = [
     useRef<HTMLInputElement>(null),
     useRef<HTMLInputElement>(null),
@@ -39,6 +48,11 @@ export default function PIN() {
       return;
     }
 
+    if (!guid) {
+      setError('No Tag GUID found. Please scan the QR code again.');
+      return;
+    }
+
     setIsLoading(true);
     setError('');
 
@@ -46,18 +60,29 @@ export default function PIN() {
       const res = await fetch(`${import.meta.env.VITE_API_URL.replace(/\/$/, "")}/api/verify-pin`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pin: enteredPin }),
+        body: JSON.stringify({ guid, pin: enteredPin }),
       });
       const data = await res.json();
 
       if (res.ok && data.success) {
-        navigate('/signup');
+        // Store for linking after signup/signin
+        sessionStorage.setItem('pendingTagGuid', guid);
+        sessionStorage.setItem('pendingTagPin', enteredPin);
+        
+        if (data.data.isLinked) {
+          // Emergency access
+          navigate(`/public-profile/${guid}`);
+        } else {
+          // Onboarding
+          navigate('/signup');
+        }
       } else {
         setError(data.message || 'Invalid PIN');
         setPin(['', '', '', '']);
         inputRefs[0].current?.focus();
       }
     } catch (err) {
+      console.error('PIN verification error:', err);
       setError('Network error, try again.');
     } finally {
       setIsLoading(false);

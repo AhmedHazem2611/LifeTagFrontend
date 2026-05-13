@@ -21,7 +21,7 @@ export default function Dashboard() {
         if (storedUser) {
             const parsed = JSON.parse(storedUser);
             if (parsed && parsed.fullName) userName = parsed.fullName;
-            userId = parsed?.id || parsed?._id || '';
+            userId = parsed?.id || '';
         }
 
         const tag = localStorage.getItem('linkedTag');
@@ -30,147 +30,318 @@ export default function Dashboard() {
         }
     } catch(e) {}
 
-    fetch(`${import.meta.env.VITE_API_URL.replace(/\/$/, "")}/api/profile?userId=${userId}`)
-      .then(res => res.json())
-      .then(data => {
-        if (data.success && data.profile) {
-          setProfile({ ...data.profile, fullName: data.profile.fullName || userName });
-        } else {
-          setProfile({
-            fullName: userName,
-            medicalConditions: [],
-            medications: [],
-            allergies: [],
-            emergencyContacts: [],
-            notes: ''
+    if (userId) {
+        fetch(`${import.meta.env.VITE_API_URL.replace(/\/$/, "")}/api/profile?userId=${userId}`)
+          .then(res => res.json())
+          .then(data => {
+            if (data.success && data.data) {
+              setProfile({ ...data.data, fullName: data.data.fullName || userName });
+            } else {
+              setProfile({
+                fullName: userName,
+                medicalConditions: [],
+                medications: [],
+                allergies: [],
+                emergencyContacts: [],
+                notes: ''
+              });
+            }
+          })
+          .catch(() => {
+            setProfile({
+                fullName: userName,
+                medicalConditions: [],
+                medications: [],
+                allergies: [],
+                emergencyContacts: [],
+                notes: ''
+            });
           });
-        }
-      })
-      .catch(() => {
-        setProfile({
-            fullName: userName,
-            medicalConditions: [],
-            medications: [],
-            allergies: [],
-            emergencyContacts: [],
-            notes: ''
-        });
-      });
+    } else {
+        // Not logged in, redirect to signin
+        navigate('/signin');
+    }
   }, []);
 
-  const syncProfile = async (updatedProfile: any) => {
-    setProfile(updatedProfile);
-    let userId = '';
-    try {
-        const storedUser = localStorage.getItem('user');
-        if (storedUser) {
-            const parsed = JSON.parse(storedUser);
-            userId = parsed?.id || parsed?._id || '';
-        }
-    } catch(e) {}
-
-    try {
-        await fetch(`${import.meta.env.VITE_API_URL.replace(/\/$/, "")}/api/save-medical-data`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({...updatedProfile, userId})
-        });
-        localStorage.setItem('previewUpdate', Date.now().toString());
-    } catch(err) {
-        console.error('Failed to sync', err);
+  const getSectionMetadata = (field: string) => {
+    switch(field) {
+       case 'medicalConditions': return { title: profile.templateType === 'Medical' ? 'Chronic Diseases' : 'Medical Conditions', type: 'list' };
+       case 'medications': return { title: 'Medications', type: 'list' };
+       case 'allergies': return { title: 'Allergies', type: 'list' };
+       case 'emergencyContacts': return { title: profile.templateType === 'Child' ? 'Parent Contacts' : 'Emergency Contact', type: 'contact' };
+       case 'notes': return { title: 'Additional Notes', type: 'note' };
+       case 'address': return { title: 'Address', type: 'address' };
+       default: return { title: field, type: 'note' };
     }
   };
 
-  const removeItem = (field: string, index: number) => {
-    if (!profile) return;
-    const newItems = [...profile[field]];
-    newItems.splice(index, 1);
-    syncProfile({ ...profile, [field]: newItems });
+  const granularSync = async (method: 'POST' | 'PUT' | 'DELETE', sectionId: number | null, payload: any = null) => {
+    const url = `${import.meta.env.VITE_API_URL.replace(/\/$/, "")}/api/profile/${profile.userId}/section${sectionId ? `/${sectionId}` : ''}`;
+    const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        ...(payload ? { body: JSON.stringify(payload) } : {})
+    });
+    return res.json();
   };
 
-  const handleSaveAdd = (field: string, val: any) => {
+  const syncScalarOrList = async (field: string, newItems: any) => {
+    const { title, type } = getSectionMetadata(field);
+    const sectionId = profile.sectionIds?.[title];
+
+    const oldProfile = { ...profile };
+    setProfile({ ...profile, [field]: newItems });
+
+    try {
+        if (sectionId) {
+            await granularSync('PUT', sectionId, { title, sectionType: type, data: newItems });
+        } else {
+            const data = await granularSync('POST', null, { title, sectionType: type, data: newItems });
+            if (data.success) {
+                setProfile((prev: any) => ({
+                    ...prev,
+                    sectionIds: { ...(prev.sectionIds || {}), [title]: data.data }
+                }));
+            }
+        }
+        localStorage.setItem('previewUpdate', Date.now().toString());
+    } catch(err) {
+        console.error('Failed to sync', err);
+        setProfile(oldProfile);
+    }
+  };
+
+  const removeItem = async (field: string, index: number) => {
     if (!profile) return;
+    
+    if (field === 'emergencyContacts') {
+        const itemToRemove = profile.emergencyContacts[index];
+        const oldProfile = { ...profile };
+        const newItems = [...profile.emergencyContacts];
+        newItems.splice(index, 1);
+        setProfile({ ...profile, emergencyContacts: newItems });
+
+        if (itemToRemove.id) {
+            try {
+                await granularSync('DELETE', itemToRemove.id);
+                localStorage.setItem('previewUpdate', Date.now().toString());
+            } catch { setProfile(oldProfile); }
+        }
+        return;
+    }
+
+    const newItems = [...profile[field]];
+    newItems.splice(index, 1);
+    syncScalarOrList(field, newItems);
+  };
+
+  const handleSaveAdd = async (field: string, val: any) => {
+    if (!profile) return;
+
+    if (field === 'emergencyContacts') {
+        const { title, type } = getSectionMetadata(field);
+        const oldProfile = { ...profile };
+        const tempId = Date.now();
+        const newContact = { ...val, id: tempId };
+        
+        let newItems = [...(profile[field] || [])];
+        newItems.push(newContact);
+        setProfile({ ...profile, [field]: newItems });
+        setAddingTo(null);
+
+        try {
+            const data = await granularSync('POST', null, { title, sectionType: type, data: val });
+            if (data.success) {
+                setProfile((prev: any) => {
+                    const updated = [...(prev.emergencyContacts || [])];
+                    const idx = updated.findIndex((c: any) => c.id === tempId);
+                    if (idx !== -1) updated[idx].id = data.data;
+                    return { ...prev, emergencyContacts: updated };
+                });
+                localStorage.setItem('previewUpdate', Date.now().toString());
+            } else setProfile(oldProfile);
+        } catch { setProfile(oldProfile); }
+        return;
+    }
+
     let newItems = [...(profile[field] || [])];
     newItems.push(val);
-    syncProfile({ ...profile, [field]: newItems });
+    syncScalarOrList(field, newItems);
     setAddingTo(null);
   };
 
-  const handleSaveEdit = (newVal: any) => {
+  const handleSaveEdit = async (newVal: any) => {
     if (!profile || !editingItem || !newVal) return;
+    
     if (editingItem.field === 'customSections') {
         const { sectionIdx, index: itemIdx } = editingItem as any;
         const newSections = [...(profile.customSections || [])];
         const newItems = [...(newSections[sectionIdx].items || [])];
         newItems[itemIdx] = newVal;
         newSections[sectionIdx] = { ...newSections[sectionIdx], items: newItems };
-        syncProfile({ ...profile, customSections: newSections });
+        
+        const oldProfile = { ...profile };
+        setProfile({ ...profile, customSections: newSections });
         setEditingItem(null);
+
+        if (newSections[sectionIdx].id) {
+            try {
+                await granularSync('PUT', newSections[sectionIdx].id, { title: newSections[sectionIdx].name, sectionType: 'list', data: newItems });
+                localStorage.setItem('previewUpdate', Date.now().toString());
+            } catch { setProfile(oldProfile); }
+        }
         return;
     }
+
+    if (editingItem.field === 'emergencyContacts') {
+        const oldProfile = { ...profile };
+        let newItems = [...(profile.emergencyContacts || [])];
+        const contact = { ...newVal, id: newItems[editingItem.index].id }; // preserve ID
+        newItems[editingItem.index] = contact;
+        setProfile({ ...profile, emergencyContacts: newItems });
+        setEditingItem(null);
+
+        if (contact.id) {
+            const { title, type } = getSectionMetadata('emergencyContacts');
+            try {
+                // Ensure we use the standardized field names from EmergencyContactDto
+                await granularSync('PUT', contact.id, { 
+                    title, 
+                    sectionType: type, 
+                    data: { 
+                        name: contact.name, 
+                        phoneNumber: contact.phoneNumber, 
+                        relation: contact.relation 
+                    } 
+                });
+                localStorage.setItem('previewUpdate', Date.now().toString());
+            } catch { setProfile(oldProfile); }
+        }
+        return;
+    }
+
     let newItems = [...(profile[editingItem.field] || [])];
     newItems[editingItem.index] = newVal;
-    syncProfile({ ...profile, [editingItem.field]: newItems });
+    syncScalarOrList(editingItem.field, newItems);
     setEditingItem(null);
   };
 
-  const removeCustomItem = (sectionIdx: number, itemIdx: number) => {
+  const removeCustomItem = async (sectionIdx: number, itemIdx: number) => {
     if (!profile) return;
+    const oldProfile = { ...profile };
     const newSections = [...(profile.customSections || [])];
     const newItems = [...newSections[sectionIdx].items];
     newItems.splice(itemIdx, 1);
     newSections[sectionIdx] = { ...newSections[sectionIdx], items: newItems };
-    syncProfile({ ...profile, customSections: newSections });
+    setProfile({ ...profile, customSections: newSections });
+
+    // Guard: Don't sync if we only have a tempId (Date.now())
+    const isTempId = typeof newSections[sectionIdx].id === 'number' && newSections[sectionIdx].id > 1000000;
+    if (newSections[sectionIdx].id && !isTempId) {
+        try {
+            await granularSync('PUT', newSections[sectionIdx].id, { title: newSections[sectionIdx].name, sectionType: 'list', data: newItems });
+            localStorage.setItem('previewUpdate', Date.now().toString());
+        } catch { setProfile(oldProfile); }
+    }
   };
 
-  const handleSaveAddCustomItem = (sectionIdx: number, val: string) => {
+  const handleSaveAddCustomItem = async (sectionIdx: number, val: string) => {
     if (!profile) return;
+    const oldProfile = { ...profile };
     const newSections = [...(profile.customSections || [])];
     const newItems = [...(newSections[sectionIdx].items || [])];
     newItems.push(val);
     newSections[sectionIdx] = { ...newSections[sectionIdx], items: newItems };
-    syncProfile({ ...profile, customSections: newSections });
+    setProfile({ ...profile, customSections: newSections });
     setAddingTo(null);
+
+    if (newSections[sectionIdx].id) {
+        try {
+            await granularSync('PUT', newSections[sectionIdx].id, { title: newSections[sectionIdx].name, sectionType: 'list', data: newItems });
+            localStorage.setItem('previewUpdate', Date.now().toString());
+        } catch { setProfile(oldProfile); }
+    }
   };
 
-  const handleSaveCustomSectionTitle = (sectionIdx: number, val: string) => {
+  const handleSaveCustomSectionTitle = async (sectionIdx: number, val: string) => {
     if (!profile) return;
+    const oldProfile = { ...profile };
     const newSections = [...(profile.customSections || [])];
     newSections[sectionIdx] = { ...newSections[sectionIdx], name: val };
-    syncProfile({ ...profile, customSections: newSections });
+    setProfile({ ...profile, customSections: newSections });
     setEditingItem(null);
+
+    // Guard: Don't sync if we only have a tempId
+    const isTempId = typeof newSections[sectionIdx].id === 'number' && newSections[sectionIdx].id > 1000000;
+    if (newSections[sectionIdx].id && !isTempId) {
+        try {
+            await granularSync('PUT', newSections[sectionIdx].id, { title: val, sectionType: 'list', data: newSections[sectionIdx].items });
+            localStorage.setItem('previewUpdate', Date.now().toString());
+        } catch { setProfile(oldProfile); }
+    }
   };
 
-  const addNewCustomSection = () => {
+  const addNewCustomSection = async () => {
     if (!profile) return;
+    const newTitle = 'New Section';
+    const oldProfile = { ...profile };
     const newSections = [...(profile.customSections || [])];
-    newSections.push({ name: 'New Section', items: [] });
-    syncProfile({ ...profile, customSections: newSections });
+    const tempId = Date.now();
+    const newSec = { name: newTitle, items: [], id: tempId };
+    newSections.push(newSec);
+    setProfile({ ...profile, customSections: newSections });
+
+    try {
+        const data = await granularSync('POST', null, { title: newTitle, sectionType: 'list', data: [] });
+        if (data.success) {
+            setProfile((prev: any) => {
+                const updated = [...(prev.customSections || [])];
+                const idx = updated.findIndex((s: any) => s.id === tempId);
+                if (idx !== -1) updated[idx].id = data.data;
+                return { ...prev, customSections: updated };
+            });
+            localStorage.setItem('previewUpdate', Date.now().toString());
+        } else setProfile(oldProfile);
+    } catch { setProfile(oldProfile); }
   };
 
-  const deleteCustomSection = (sectionIdx: number) => {
+  const deleteCustomSection = async (sectionIdx: number) => {
     if (!profile) return;
+    const oldProfile = { ...profile };
     const newSections = [...(profile.customSections || [])];
+    const sectionToRemove = newSections[sectionIdx];
     newSections.splice(sectionIdx, 1);
-    syncProfile({ ...profile, customSections: newSections });
+    setProfile({ ...profile, customSections: newSections });
+
+    if (sectionToRemove.id) {
+        try {
+            await granularSync('DELETE', sectionToRemove.id);
+            localStorage.setItem('previewUpdate', Date.now().toString());
+        } catch { setProfile(oldProfile); }
+    }
   };
 
   const InlineInput = ({ onSave, onCancel, isContact, initialVal }: any) => {
-    const [val, setVal] = useState(initialVal?.name || initialVal || '');
-    const [phone, setPhone] = useState(initialVal?.phone || '');
+    // Robust initialization: ensures we don't fall back to the full object if a field is missing
+    const [val, setVal] = useState(isContact ? (initialVal?.name || initialVal?.Name || '') : (initialVal || ''));
+    const [phone, setPhone] = useState(isContact ? (initialVal?.phoneNumber || initialVal?.phone || '') : '');
+    const [relation, setRelation] = useState(isContact ? (initialVal?.relation || initialVal?.type || '') : '');
     
     return (
       <div className="flex gap-2 w-full mt-2 bg-slate-50 p-2 rounded-xl border border-blue-100 shadow-sm animate-in fade-in slide-in-from-top-2">
          {isContact ? (
             <div className="flex flex-col gap-2 flex-1">
               <input autoFocus className="auth-input py-2 text-[13px] bg-white w-full" placeholder="Contact Name" value={val} onChange={e=>setVal(e.target.value)} />
-              <input className="auth-input py-2 text-[13px] bg-white w-full" placeholder="Phone Number" value={phone} onChange={e=>setPhone(e.target.value)} />
+              <div className="flex gap-2">
+                <input className="auth-input py-2 text-[13px] bg-white w-1/2" placeholder="Relation (e.g. Mother)" value={relation} onChange={e=>setRelation(e.target.value)} />
+                <input className="auth-input py-2 text-[13px] bg-white w-1/2" placeholder="Phone Number" value={phone} onChange={e=>setPhone(e.target.value)} />
+              </div>
             </div>
          ) : (
             <input autoFocus className="auth-input flex-1 py-1.5 text-[13px] bg-white" placeholder="Type here..." value={val} onChange={e=>setVal(e.target.value)} />
          )}
          <div className="flex flex-col gap-2">
-           <button onClick={() => { if(val.trim()) onSave(isContact ? {name: val, phone, type: 'Emergency'} : val) }} className="bg-[#0062ff] text-white px-3 py-1.5 rounded-lg text-[13px] font-bold shadow-sm hover:bg-blue-600 transition-colors h-full">Save</button>
+           <button onClick={() => { if(val.trim()) onSave(isContact ? {name: val, phoneNumber: phone, relation: relation} : val) }} className="bg-[#0062ff] text-white px-3 py-1.5 rounded-lg text-[13px] font-bold shadow-sm hover:bg-blue-600 transition-colors h-full">Save</button>
            <button onClick={onCancel} className="bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-[13px] font-bold shadow-sm hover:bg-slate-300 transition-colors max-h-[32px]">Cancel</button>
          </div>
       </div>
@@ -200,7 +371,7 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="flex gap-2.5">
-            <button onClick={() => navigate('/public-profile')} className="w-[34px] h-[34px] rounded-full bg-white shadow-sm flex items-center justify-center text-blue-500 hover:bg-blue-50 transition-colors border border-slate-100">
+            <button onClick={() => navigate('/public-profile?internal=true')} className="w-[34px] h-[34px] rounded-full bg-white shadow-sm flex items-center justify-center text-blue-500 hover:bg-blue-50 transition-colors border border-slate-100">
               <Eye className="w-4 h-4 opacity-80" />
             </button>
             <button onClick={() => navigate('/settings')} className="w-[34px] h-[34px] rounded-full bg-white shadow-sm flex items-center justify-center text-slate-500 hover:bg-slate-50 transition-colors border border-slate-100">
@@ -347,7 +518,7 @@ export default function Dashboard() {
           )}
 
           {/* Emergency Contacts */}
-          {profile.templateType !== 'Custom' && (
+          {(profile.templateType !== 'Custom' || profile.emergencyContacts?.length > 0) && (
           <div className="clay-section p-5 w-full">
             <div className="flex justify-between items-center mb-4">
               <div className="flex items-center gap-2.5 font-bold text-slate-800 text-[16px]">
@@ -371,7 +542,7 @@ export default function Dashboard() {
                 ) : (
                    <div key={idx} onClick={() => { setEditingItem({field: 'emergencyContacts', index: idx}); setEditVal(contact); }} className="flex flex-col bg-[#f4f6fb] px-4 py-3 rounded-xl text-[13px] text-slate-600 relative pr-10 cursor-pointer hover:bg-slate-100 transition-colors group">
                      <span className="font-extrabold text-[#1a1c1e] text-[14px]">{contact.name}</span>
-                     <span className="font-medium text-slate-500 mt-0.5">{contact.phone} {contact.type ? `• ${contact.type}` : ''}</span>
+                     <span className="font-medium text-slate-500 mt-0.5">{(contact.phoneNumber || contact.phone)} {(contact.relation || contact.type) ? `• ${(contact.relation || contact.type)}` : ''}</span>
                      <button onClick={(e) => { e.stopPropagation(); removeItem('emergencyContacts', idx); }} className="absolute right-3 top-1/2 transform -translate-y-1/2 w-7 h-7 rounded-full bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-100 transition-colors opacity-0 group-hover:opacity-100 shrink-0"><X size={12} /></button>
                    </div>
                 )
@@ -400,7 +571,7 @@ export default function Dashboard() {
                     onChange={e => setEditVal(e.target.value)} 
                   />
                   <div className="flex gap-2">
-                    <button onClick={() => { syncProfile({...profile, address: editVal}); setAddingTo(null); }} className="bg-[#0062ff] text-white px-4 py-2 rounded-lg text-[13px] font-bold shadow-sm hover:bg-blue-600 transition-colors">Save Address</button>
+                    <button onClick={() => { syncScalarOrList('address', editVal); setAddingTo(null); }} className="bg-[#0062ff] text-white px-4 py-2 rounded-lg text-[13px] font-bold shadow-sm hover:bg-blue-600 transition-colors">Save Address</button>
                     <button onClick={() => setAddingTo(null)} className="bg-slate-200 text-slate-700 px-4 py-2 rounded-lg text-[13px] font-bold shadow-sm hover:bg-slate-300 transition-colors">Cancel</button>
                   </div>
                 </div>
@@ -506,7 +677,7 @@ export default function Dashboard() {
                 onChange={e => setEditVal(e.target.value)} 
               />
               <div className="flex gap-2">
-                <button onClick={() => { syncProfile({...profile, notes: editVal}); setAddingTo(null); }} className="bg-[#0062ff] text-white px-4 py-2 rounded-lg text-[13px] font-bold shadow-sm hover:bg-blue-600 transition-colors">Save Notes</button>
+                <button onClick={() => { syncScalarOrList('notes', editVal); setAddingTo(null); }} className="bg-[#0062ff] text-white px-4 py-2 rounded-lg text-[13px] font-bold shadow-sm hover:bg-blue-600 transition-colors">Save Notes</button>
                 <button onClick={() => setAddingTo(null)} className="bg-slate-200 text-slate-700 px-4 py-2 rounded-lg text-[13px] font-bold shadow-sm hover:bg-slate-300 transition-colors">Cancel</button>
               </div>
             </div>

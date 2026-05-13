@@ -19,17 +19,18 @@ export default function PinProtection() {
       const userId = userStr && user ? (user.id || user._id) : '';
 
       if (enabled) {
-        // Automatically assigning a default PIN or just saving the preference
-        await fetch(`${import.meta.env.VITE_API_URL.replace(/\/$/, "")}/api/save-medical-data`, { 
-          method: 'POST',
+        // Toggling protection ON. We do NOT send a new PIN here 
+        // to preserve the permanent physical bracelet PIN.
+        await fetch(`${import.meta.env.VITE_API_URL.replace(/\/$/, "")}/api/tag/${userId}/pin-settings`, { 
+          method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId, isPinProtected: true, pin: "0000" }), // Auto-assigned default PIN
+          body: JSON.stringify({ isPinProtected: true }), 
         });
       } else {
-        await fetch(`${import.meta.env.VITE_API_URL.replace(/\/$/, "")}/api/save-medical-data`, { 
-          method: 'POST',
+        await fetch(`${import.meta.env.VITE_API_URL.replace(/\/$/, "")}/api/tag/${userId}/pin-settings`, { 
+          method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId, isPinProtected: false }),     
+          body: JSON.stringify({ isPinProtected: false }),     
         });
       }
     } catch (e) {

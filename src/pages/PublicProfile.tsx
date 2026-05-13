@@ -1,51 +1,96 @@
 import { Phone, HeartPulse, Pill, AlertTriangle, FileText, Droplet, Edit3 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import logo from '../assets/logo.png';
 
 export default function PublicProfile() {
   const navigate = useNavigate();
+  const { guid } = useParams();
+  const [searchParams] = useSearchParams();
+  const isInternal = searchParams.get('internal') === 'true';
+
   const [profile, setProfile] = useState<any>(null);
 
   useEffect(() => {
-    const fetchProfile = () => {
+    const fetchProfile = async () => {
       let userName = 'Unknown User';
-      let userId = '';
-      try {
-          const storedUser = localStorage.getItem('user');
-          if (storedUser) {
-              const parsed = JSON.parse(storedUser);
-              if (parsed && parsed.fullName) userName = parsed.fullName;
-              userId = parsed?.id || parsed?._id || '';
-          }
-      } catch(e) {}
+      let fetchUrl = '';
+      
+      if (guid) {
+        // New GUID-based public access
+        try {
+            const statusRes = await fetch(`${import.meta.env.VITE_API_URL.replace(/\/$/, "")}/api/tag/${guid}/pin-status`);
+            const statusData = await statusRes.json();
+            
+            if (!statusData.success || !statusData.data.isActive) {
+                // If the tag is not active (unassigned), start onboarding
+                if (!isInternal) {
+                    navigate(`/pin?guid=${guid}`);
+                    return;
+                }
+            }
+            
+            if (statusData.data.isPinProtected) {
+                const storedPin = sessionStorage.getItem('pendingTagPin');
+                if (!storedPin) {
+                    navigate(`/pin?guid=${guid}`);
+                    return;
+                }
+                fetchUrl = `${import.meta.env.VITE_API_URL.replace(/\/$/, "")}/api/public-profile/${guid}?pin=${storedPin}`;
+            } else {
+                fetchUrl = `${import.meta.env.VITE_API_URL.replace(/\/$/, "")}/api/public-profile/${guid}`;
+            }
+        } catch (e) {
+            if (!isInternal) {
+                navigate('/404');
+                return;
+            }
+        }
+      } else {
+        // Fallback for dashboard preview
+        let userId = '';
+        try {
+            const storedUser = localStorage.getItem('user');
+            if (storedUser) {
+                const parsed = JSON.parse(storedUser);
+                if (parsed && parsed.fullName) userName = parsed.fullName;
+                userId = parsed?.id || '';
+            }
+        } catch(e) {}
+        fetchUrl = `${import.meta.env.VITE_API_URL.replace(/\/$/, "")}/api/profile?userId=${userId}`;
+      }
 
-      fetch(`${import.meta.env.VITE_API_URL.replace(/\/$/, "")}/api/profile?userId=${userId}`)
+      fetch(fetchUrl)
         .then(res => res.json())
         .then(data => {
-          if (data.success && data.profile) {
-            setProfile({ ...data.profile, fullName: data.profile.fullName || userName });
+          if (data.success && data.data) {
+            setProfile({ ...data.data, fullName: data.data.fullName || userName });
           } else {
+            if (guid && !isInternal) {
+              navigate('/404');
+              return;
+            }
+            // Default mock data if profile not found or access denied (internal preview)
             setProfile({
               fullName: userName,
-              bloodType: 'A+',
-              medicalConditions: ['Diabetes', 'Asthma'],
-              medications: ['Ibuprofen', 'Panadol'],
-              allergies: ['Cheese', 'Peanuts'],
-              emergencyContacts: [{ name: 'Mohamed Mostafa', type: 'brother', phone: '01062558066' }],
-              notes: 'Is lactose intolerant'
+              bloodType: '?',
+              medicalConditions: [],
+              medications: [],
+              allergies: [],
+              emergencyContacts: [],
+              notes: 'No profile data found.'
             });
           }
         })
         .catch(() => {
           setProfile({
               fullName: userName,
-              bloodType: 'A+',
-              medicalConditions: ['Diabetes', 'Asthma'],
-              medications: ['Ibuprofen', 'Panadol'],
-              allergies: ['Cheese', 'Peanuts'],
-              emergencyContacts: [{ name: 'Mohamed Mostafa', type: 'brother', phone: '01062558066' }],
-              notes: 'Is lactose intolerant'
+              bloodType: '?',
+              medicalConditions: [],
+              medications: [],
+              allergies: [],
+              emergencyContacts: [],
+              notes: 'Failed to load profile.'
           });
         });
     };
@@ -62,6 +107,14 @@ export default function PublicProfile() {
   }, []);
 
   if (!profile) return <div className="p-6 text-center text-slate-500 font-medium">Loading Medical Data...</div>;
+
+  if (profile.isError) return (
+      <div className="flex-1 flex flex-col items-center justify-center p-6 text-center bg-transparent min-h-screen">
+          <div className="bg-red-50 text-red-500 font-bold text-[14px] px-6 py-4 rounded-2xl border border-red-100 max-w-sm">
+             {profile.notes || profile.message || 'Error loading profile'}
+          </div>
+      </div>
+  );
 
   const dobAge = profile?.dob ? Math.floor((new Date().getTime() - new Date(profile.dob).getTime()) / 31557600000) : null;
   const displayAge = (dobAge !== null && !isNaN(dobAge)) ? dobAge : profile?.age;
@@ -163,7 +216,7 @@ export default function PublicProfile() {
           )}
 
           {/* Emergency Contacts */}
-          {profile.templateType !== 'Custom' && (
+          {(profile.templateType !== 'Custom' || profile.emergencyContacts?.length > 0) && (
           <div className="clay-section p-6">
              <div className="flex items-center gap-2 text-[#475569] font-bold text-[14px] mb-3">
                 <Phone size={18} className="text-[#22c55e]" strokeWidth={2.5} /> Emergency Contacts
@@ -172,10 +225,10 @@ export default function PublicProfile() {
                 {profile.emergencyContacts?.length > 0 ? profile.emergencyContacts.map((contact: any, idx: number) => (
                  <div key={idx} className="flex justify-between items-center bg-white/70 p-3.5 rounded-2xl border border-slate-100 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)]">
                     <div className="flex flex-col">
-                       <h3 className="font-extrabold text-[#1a1c1e] text-[14px] tracking-tight">{contact.name}</h3>
-                       <p className="text-[12px] text-slate-500 font-medium mt-0.5">{contact.type || 'Contact'}</p>
+                       <h3 className="font-extrabold text-[#1a1c1e] text-[14px] tracking-tight">{contact.name || 'Emergency Contact'}</h3>
+                       <p className="text-[12px] text-slate-500 font-medium mt-0.5">{contact.relation || contact.type || ''}</p>
                     </div>
-                    <a href={'tel:' + contact.phone} className="bg-gradient-to-r from-[#34d399] to-[#22c55e] border border-[#4ade80] text-white font-bold text-[13px] px-6 py-2.5 rounded-xl shadow-[0px_4px_12px_rgba(34,197,94,0.3)] hover:-translate-y-0.5 transition-transform">
+                    <a href={'tel:' + (contact.phoneNumber || contact.phone)} className="bg-gradient-to-r from-[#34d399] to-[#22c55e] border border-[#4ade80] text-white font-bold text-[13px] px-6 py-2.5 rounded-xl shadow-[0px_4px_12px_rgba(34,197,94,0.3)] hover:-translate-y-0.5 transition-transform">
                       Call
                     </a>
                  </div>
@@ -231,10 +284,16 @@ export default function PublicProfile() {
 
       <div className="w-full flex justify-center fixed bottom-6 px-6 max-w-[400px]">
         <button
-          onClick={() => navigate('/dashboard')}
+          onClick={() => {
+            if (isInternal) {
+              navigate('/dashboard');
+            } else {
+              navigate(`/signin?editTagGuid=${guid || ''}`);
+            }
+          }}
           className="w-full bg-gradient-to-t from-[#005adc] to-[#3a9fff] border border-[#68b7ff] text-white font-bold py-3.5 rounded-[16px] shadow-[0px_10px_20px_rgba(58,159,255,0.4),inset_0px_2px_4px_rgba(255,255,255,0.3)] flex items-center justify-center gap-2 text-[15px] hover:-translate-y-1 transition-transform"
         >
-          <Edit3 size={16} strokeWidth={2.5} /> Edit Profile
+          <Edit3 size={16} strokeWidth={2.5} /> {isInternal ? 'Return to Editor' : 'Edit Profile'}
         </button>
       </div>
 
