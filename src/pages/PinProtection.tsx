@@ -36,7 +36,7 @@ export default function PinProtection() {
     } catch (e) {
       console.log(e);
     }
-    navigate('/dashboard');
+    navigate('/guardian-onboarding');
   };
 
   if (loading) {

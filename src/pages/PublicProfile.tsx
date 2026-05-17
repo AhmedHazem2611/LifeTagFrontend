@@ -2,6 +2,7 @@ import { Phone, HeartPulse, Pill, AlertTriangle, FileText, Droplet, Edit3 } from
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import logo from '../assets/logo.png';
+import { emergencyApi } from '../api/emergencyApi';
 
 export default function PublicProfile() {
   const navigate = useNavigate();
@@ -10,6 +11,10 @@ export default function PublicProfile() {
   const isInternal = searchParams.get('internal') === 'true';
 
   const [profile, setProfile] = useState<any>(null);
+  const [emergencySession, setEmergencySession] = useState<any>(null);
+  const [emergencyState, setEmergencyState] = useState<'idle' | 'pending' | 'acknowledged' | 'failed'>('idle');
+  const [locError, setLocError] = useState<string | null>(null);
+  const [showLocModal, setShowLocModal] = useState(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -78,7 +83,8 @@ export default function PublicProfile() {
               medications: [],
               allergies: [],
               emergencyContacts: [],
-              notes: 'No profile data found.'
+              notes: 'No profile data found.',
+              hasEmergencyGuardian: false
             });
           }
         })
@@ -90,7 +96,8 @@ export default function PublicProfile() {
               medications: [],
               allergies: [],
               emergencyContacts: [],
-              notes: 'Failed to load profile.'
+              notes: 'Failed to load profile.',
+              hasEmergencyGuardian: false
           });
         });
     };
@@ -104,7 +111,32 @@ export default function PublicProfile() {
     };
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
-  }, []);
+  }, [guid, isInternal, navigate]);
+
+  // Polling for acknowledgment
+  useEffect(() => {
+    let interval: any;
+    if (emergencyState === 'pending' && emergencySession?.id) {
+      interval = setInterval(async () => {
+        try {
+          const res = await emergencyApi.getSessionDetails(emergencySession.id);
+          if (res.success && res.data) {
+            if (res.data.status === 'Acknowledged') {
+              setEmergencySession(res.data);
+              setEmergencyState('acknowledged');
+              clearInterval(interval);
+            } else if (res.data.status === 'Expired' || res.data.status === 'Closed') {
+              setEmergencyState('failed');
+              clearInterval(interval);
+            }
+          }
+        } catch (e) {
+          console.error('Polling error:', e);
+        }
+      }, 3000);
+    }
+    return () => clearInterval(interval);
+  }, [emergencyState, emergencySession]);
 
   if (!profile) return <div className="p-6 text-center text-slate-500 font-medium">Loading Medical Data...</div>;
 
@@ -119,8 +151,137 @@ export default function PublicProfile() {
   const dobAge = profile?.dob ? Math.floor((new Date().getTime() - new Date(profile.dob).getTime()) / 31557600000) : null;
   const displayAge = (dobAge !== null && !isNaN(dobAge)) ? dobAge : profile?.age;
 
+  const handleTriggerEmergency = () => {
+    setLocError(null);
+    setShowLocModal(false);
+    
+    if (!navigator.geolocation) {
+      setLocError('Geolocation is not supported by your browser. Please enable location services.');
+      setShowLocModal(true);
+      return;
+    }
+
+    // Set temporary loading state but don't enter 'pending' (polling) yet
+    setEmergencyState('pending'); 
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const res = await emergencyApi.triggerEmergency(
+            guid!, 
+            position.coords.latitude, 
+            position.coords.longitude
+          );
+          if (res.success && res.data) {
+            setEmergencySession(res.data);
+            // Now we are truly pending guardian response
+            setEmergencyState('pending');
+          } else {
+            // API failure is treated as a generic failure for now
+            setEmergencyState('idle');
+            setLocError(res.message || 'Failed to trigger alert. Please try again.');
+            setShowLocModal(true);
+          }
+        } catch (e) {
+          setEmergencyState('idle');
+          setLocError('Network error while triggering alert. Please check your connection.');
+          setShowLocModal(true);
+        }
+      },
+      (err) => {
+        // Location failed: Reset to idle and show modal
+        setEmergencyState('idle');
+        if (err.code === 1) {
+          setLocError('Location permission is required to alert the guardian. Please allow location access and try again.');
+        } else {
+          setLocError('Unable to retrieve location. Please enable location services and try again.');
+        }
+        setShowLocModal(true);
+      },
+      { timeout: 10000, enableHighAccuracy: true }
+    );
+  };
+
+  const renderEmergencyButton = () => {
+    if (!profile.hasEmergencyGuardian) return null;
+
+    switch (emergencyState) {
+      case 'idle':
+        return (
+          <button
+            onClick={handleTriggerEmergency}
+            className="w-full bg-gradient-to-t from-[#e11d48] to-[#fb7185] border border-[#f43f5e] text-white font-bold py-3.5 rounded-[16px] shadow-[0px_10px_20px_rgba(225,29,72,0.4),inset_0px_2px_4px_rgba(255,255,255,0.3)] flex items-center justify-center gap-2 text-[15px] hover:-translate-y-1 transition-transform"
+          >
+            <AlertTriangle size={18} strokeWidth={2.5} /> Send Emergency Alert
+          </button>
+        );
+      case 'pending':
+        const isRequestingLocation = !emergencySession?.id;
+        return (
+          <button
+            disabled
+            className="w-full bg-slate-200 border border-slate-300 text-slate-500 font-bold py-3.5 rounded-[16px] flex items-center justify-center gap-2 text-[15px] opacity-80 cursor-not-allowed"
+          >
+            <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+            {isRequestingLocation ? 'Retrieving Location...' : 'Waiting for Guardian Response...'}
+          </button>
+        );
+      case 'acknowledged':
+        return (
+          <button
+            onClick={() => {
+              if (emergencySession?.id) {
+                navigate(`/emergency-chat/${emergencySession.id}`);
+              }
+            }}
+            className="w-full bg-gradient-to-t from-[#059669] to-[#34d399] border border-[#10b981] text-white font-bold py-3.5 rounded-[16px] shadow-[0px_10px_20px_rgba(16,185,129,0.4),inset_0px_2px_4px_rgba(255,255,255,0.3)] flex items-center justify-center gap-2 text-[15px] hover:-translate-y-1 transition-transform"
+          >
+            <Phone size={18} strokeWidth={2.5} /> Guardian Responded — Open Chat
+          </button>
+        );
+      case 'failed':
+        return (
+          <div className="flex flex-col gap-2 w-full">
+            <button
+              onClick={() => {
+                setEmergencySession(null);
+                handleTriggerEmergency();
+              }}
+              className="w-full bg-slate-100 border border-slate-200 text-slate-500 font-bold py-3.5 rounded-[16px] flex items-center justify-center gap-2 text-[15px] hover:bg-slate-200 transition-colors"
+            >
+              No Guardian Responded — Retry Alert
+            </button>
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
   return (
-    <div className="flex-1 flex flex-col items-center bg-[#f8fbff] font-body min-h-screen relative pb-[12vh]">
+    <div className="flex-1 flex flex-col items-center bg-[#f8fbff] font-body min-h-screen relative pb-[20vh]">
+      
+      {/* Location Error Modal Overlay */}
+      {showLocModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="clay-card w-full max-w-[340px] p-6 flex flex-col items-center text-center animate-in zoom-in-95 duration-300">
+            <div className="bg-red-50 text-red-500 p-3 rounded-2xl mb-4">
+              <AlertTriangle size={28} strokeWidth={2.5} />
+            </div>
+            <h3 className="text-[18px] font-black text-slate-900 mb-2">Location Required</h3>
+            <p className="text-[13px] text-slate-500 font-medium leading-relaxed mb-6">
+              {locError}
+            </p>
+            <button 
+              onClick={() => setShowLocModal(false)}
+              className="w-full bg-slate-900 text-white font-bold py-3 rounded-xl hover:opacity-90 transition-opacity"
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="w-full max-w-[400px] md:max-w-4xl flex flex-col px-6 pt-8 pb-20">
         
         {/* Header Profile Identity */}
@@ -135,6 +296,13 @@ export default function PublicProfile() {
             <h1 className="text-[26px] font-black text-[#1e293b] tracking-tight">{profile.fullName || 'Unknown User'}</h1>
           )}
         </div>
+
+        {/* Location Error Feedback */}
+        {locError && (
+          <div className="mb-4 bg-red-50 border border-red-100 text-red-600 text-[12px] font-bold p-3 rounded-xl text-center">
+            {locError}
+          </div>
+        )}
 
         <div className="flex flex-col gap-4">
 
@@ -204,8 +372,7 @@ export default function PublicProfile() {
           {(profile.address || profile.templateType === 'Child') && profile.templateType !== 'Custom' && (
             <div className="clay-section p-6 flex flex-col">
               <div className="flex items-center gap-2 text-[#475569] font-bold text-[14px] mb-3">
-                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-                 Address
+                 <FileText size={18} className="text-[#64748b]" strokeWidth={2.5} /> Address
               </div>
               {profile.address ? (
                 <p className="text-[14px] font-medium text-slate-700 bg-[#f4f6fb] px-4 py-3 rounded-xl border border-slate-100 shadow-sm whitespace-pre-wrap">{profile.address}</p>
@@ -251,18 +418,11 @@ export default function PublicProfile() {
           {profile.templateType === 'Custom' && profile.customSections?.map((sec: any, idx: number) => {
             const getIconForTitle = (title: string) => {
               const t = (title || '').toLowerCase();
-              if (t.includes('medic') || t.includes('health') || t.includes('condition') || t.includes('surgery')) return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f87171" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20.42 4.58a5.4 5.4 0 0 0-7.65 0l-.77.78-.77-.78a5.4 5.4 0 0 0-7.65 0C1.46 6.7 1.33 10.28 4 13l8 8 8-8c2.67-2.72 2.54-6.3.42-8.42z"></path></svg>;
-              if (t.includes('pill') || t.includes('medication') || t.includes('drug') || t.includes('pharm')) return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"/><path d="m8.5 8.5 7 7"/></svg>;
-              if (t.includes('allerg')) return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f87171" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>;
-              if (t.includes('contact') || t.includes('emergency') || t.includes('phone') || t.includes('call')) return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>;
-              if (t.includes('address') || t.includes('location') || t.includes('place') || t.includes('home') || t.includes('city')) return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>;
-              if (t.includes('doctor') || t.includes('physician') || t.includes('specialist') || t.includes('clinic') || t.includes('hospital')) return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#06b6d4" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3"/><path d="M8 15v1a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6v-4"/><circle cx="20" cy="10" r="2"/></svg>;
-              if (t.includes('blood') || t.includes('vital') || t.includes('measure')) return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#e11d48" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/></svg>;
-              if (t.includes('diet') || t.includes('food') || t.includes('nutrition') || t.includes('eat')) return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20.94c1.5 0 2.75 1.06 4 1.06 3 0 6-8 6-12.22A4.91 4.91 0 0 0 17 5c-2.22 0-4 1.44-5 2-1-.56-2.78-2-5-2a4.9 4.9 0 0 0-5 4.78C2 14 5 22 8 22c1.25 0 2.5-1.06 4-1.06Z"/><path d="M10 2c1 .5 2 2 2 5"/></svg>;
-              if (t.includes('insurance') || t.includes('policy') || t.includes('legal') || t.includes('protect')) return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>;
-              if (t.includes('history') || t.includes('past') || t.includes('previous') || t.includes('timeline')) return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>;
-              if (t.includes('note') || t.includes('additional') || t.includes('info') || t.includes('detail')) return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>;
-              return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>;
+              if (t.includes('medic') || t.includes('health') || t.includes('condition') || t.includes('surgery')) return <HeartPulse size={18} className="text-[#f87171]" strokeWidth={2.5} />;
+              if (t.includes('pill') || t.includes('medication') || t.includes('drug')) return <Pill size={18} className="text-[#2563eb]" strokeWidth={2.5} />;
+              if (t.includes('allerg')) return <AlertTriangle size={18} className="text-[#f87171]" strokeWidth={2.5} />;
+              if (t.includes('contact') || t.includes('phone')) return <Phone size={18} className="text-[#22c55e]" strokeWidth={2.5} />;
+              return <FileText size={18} className="text-[#60a5fa]" strokeWidth={2.5} />;
             };
             return (
               <div key={`custom-${idx}`} className="clay-section p-6">
@@ -282,19 +442,34 @@ export default function PublicProfile() {
 
       </div>
 
-      <div className="w-full flex justify-center fixed bottom-6 px-6 max-w-[400px]">
-        <button
-          onClick={() => {
-            if (isInternal) {
-              navigate('/dashboard');
-            } else {
-              navigate(`/signin?editTagGuid=${guid || ''}`);
-            }
-          }}
-          className="w-full bg-gradient-to-t from-[#005adc] to-[#3a9fff] border border-[#68b7ff] text-white font-bold py-3.5 rounded-[16px] shadow-[0px_10px_20px_rgba(58,159,255,0.4),inset_0px_2px_4px_rgba(255,255,255,0.3)] flex items-center justify-center gap-2 text-[15px] hover:-translate-y-1 transition-transform"
-        >
-          <Edit3 size={16} strokeWidth={2.5} /> {isInternal ? 'Return to Editor' : 'Edit Profile'}
-        </button>
+      {/* Persistent Bottom Action Area */}
+      <div className="w-full flex flex-col items-center fixed bottom-6 px-6 max-w-[440px] gap-3">
+        
+        {/* Primary Action (Emergency or Edit) */}
+        {renderEmergencyButton() || (
+          <button
+            onClick={() => {
+              if (isInternal) navigate('/dashboard');
+              else navigate(`/signin?editTagGuid=${guid || ''}`);
+            }}
+            className="w-full bg-gradient-to-t from-[#005adc] to-[#3a9fff] border border-[#68b7ff] text-white font-bold py-3.5 rounded-[16px] shadow-[0px_10px_20px_rgba(58,159,255,0.4),inset_0px_2px_4px_rgba(255,255,255,0.3)] flex items-center justify-center gap-2 text-[15px] hover:-translate-y-1 transition-transform"
+          >
+            <Edit3 size={16} strokeWidth={2.5} /> {isInternal ? 'Return to Editor' : 'Edit Profile'}
+          </button>
+        )}
+
+        {/* Secondary Edit Action if emergency button is present */}
+        {profile.hasEmergencyGuardian && emergencyState === 'idle' && (
+           <button
+             onClick={() => {
+               if (isInternal) navigate('/dashboard');
+               else navigate(`/signin?editTagGuid=${guid || ''}`);
+             }}
+             className="text-[12px] text-slate-400 font-bold hover:text-slate-600 transition-colors"
+           >
+             Edit Profile
+           </button>
+        )}
       </div>
 
     </div>

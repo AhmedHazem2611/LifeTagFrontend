@@ -7,6 +7,7 @@ import MedicalInfo from './pages/MedicalInfo';
 import ChildInfo from './pages/ChildInfo';
 import CustomTemplateBuilder from './pages/CustomTemplateBuilder';
 import PinProtection from './pages/PinProtection';
+import GuardianOnboarding from './pages/GuardianOnboarding';
 import Dashboard from './pages/Dashboard';
 import Settings from './pages/Settings';
 import PublicProfile from './pages/PublicProfile';
@@ -14,6 +15,7 @@ import LinkTag from './pages/LinkTag';
 import LocationHistory from './pages/LocationHistory';
 import QRHandler from './pages/QRHandler';
 import AdminPanel from './pages/AdminPanel';
+import EmergencyChat from './pages/EmergencyChat';
 import NotFound from './pages/NotFound';
 
 function App() {
@@ -34,6 +36,7 @@ function App() {
           <Route path="/child-info" element={<ChildInfo />} />
           <Route path="/custom-template" element={<CustomTemplateBuilder />} />
           <Route path="/pin-protection" element={<PinProtection />} />
+          <Route path="/guardian-onboarding" element={<GuardianOnboarding />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/public-profile" element={<PublicProfile />} />
@@ -41,6 +44,7 @@ function App() {
           <Route path="/link-tag" element={<LinkTag />} />
           <Route path="/location-history" element={<LocationHistory />} />
           <Route path="/admin" element={<AdminPanel />} />
+          <Route path="/emergency-chat/:sessionId" element={<EmergencyChat />} />
           <Route path="/404" element={<NotFound />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
