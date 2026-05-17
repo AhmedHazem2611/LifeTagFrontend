@@ -106,7 +106,7 @@ export default function Settings() {
     
     setIsLoggingOut(true);
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL.replace(/\/$/, "")}/api/tag/deactivate?userId=${profile.userId}`, {
+      await fetch(`${import.meta.env.VITE_API_URL.replace(/\/$/, "")}/api/tag/deactivate?userId=${profile.userId}`, {
         method: 'POST',
       });
       // Even if deactivate fails, we should clear local storage and redirect
