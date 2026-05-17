@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Phone, MapPin, Send, ArrowLeft, MoreVertical, ShieldAlert, HeartPulse } from 'lucide-react';
+import { MapPin, Send, ArrowLeft, MoreVertical, ShieldAlert, HeartPulse } from 'lucide-react';
 import { emergencyApi } from '../api/emergencyApi';
 import type { EmergencySessionResponse, EmergencyMessageResponse } from '../api/emergencyApi';
 
