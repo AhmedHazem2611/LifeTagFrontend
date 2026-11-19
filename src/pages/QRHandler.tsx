@@ -1,50 +1,51 @@
 import { useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 export default function QRHandler() {
   const [searchParams] = useSearchParams();
+  const { code: paramCode } = useParams<{ code?: string }>();
   const navigate = useNavigate();
-  const guid = searchParams.get('guid');
+  const identifier = (paramCode || searchParams.get('code') || searchParams.get('guid') || '').trim();
 
   useEffect(() => {
     const checkStatus = async () => {
-      if (!guid) {
-        // If no guid, just go to 404
-        navigate('/404');
+      if (!identifier) {
+        navigate('/404', { replace: true });
         return;
       }
 
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL.replace(/\/$/, "")}/api/tag/${guid}/pin-status`);
+        const res = await fetch(
+          `${import.meta.env.VITE_API_URL.replace(/\/$/, '')}/api/tag/${encodeURIComponent(identifier)}/pin-status`
+        );
         const data = await res.json();
 
-        if (res.ok && data.success) {
-          const { isActive, isPinProtected } = data.data;
+        if (res.ok && data.success && data.data) {
+          const { isActive, isPinProtected, shortCode } = data.data;
+          const slug = shortCode || identifier;
 
           if (isActive && !isPinProtected) {
-            // Active + No PIN -> Public Profile
-            navigate(`/public-profile/${guid}`);
+            navigate(`/public-profile/${slug}`, { replace: true });
           } else {
-            // Unassigned OR Active with PIN -> Enter PIN
-            navigate(`/pin?guid=${guid}`);
+            navigate(`/pin?code=${encodeURIComponent(slug)}`, { replace: true });
           }
         } else {
-          console.error("Tag not found or error", data.message);
-          navigate('/404');
+          console.error('Tag not found or error', data.message);
+          navigate('/404', { replace: true });
         }
       } catch (err) {
-        console.error("QR check failed", err);
-        navigate('/404');
+        console.error('QR check failed', err);
+        navigate('/404', { replace: true });
       }
     };
 
     checkStatus();
-  }, [guid, navigate]);
+  }, [identifier, navigate]);
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center min-h-screen bg-transparent">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-400"></div>
-        <p className="mt-4 text-slate-500 font-medium">Verifying Tag...</p>
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-400"></div>
+      <p className="mt-4 text-slate-500 font-medium">Verifying Tag...</p>
     </div>
   );
 }

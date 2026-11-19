@@ -28,7 +28,9 @@ function App() {
         <div className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col">
           <Routes>
           <Route path="/" element={<QRHandler />} />
+          <Route path="/t/:code" element={<QRHandler />} />
           <Route path="/pin" element={<PIN />} />
+          <Route path="/pin/:code" element={<PIN />} />
           <Route path="/signin" element={<SignIn />} />
           <Route path="/signup" element={<SignUp />} />
           <Route path="/choose-template" element={<ChooseTemplate />} />
@@ -46,6 +48,7 @@ function App() {
           <Route path="/admin" element={<AdminPanel />} />
           <Route path="/emergency-chat/:sessionId" element={<EmergencyChat />} />
           <Route path="/404" element={<NotFound />} />
+          <Route path="/:code" element={<QRHandler />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </div>

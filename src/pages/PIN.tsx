@@ -1,55 +1,101 @@
 import { useState, useRef, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import logo from '../assets/logo.png';
 
 export default function PIN() {
-  const [pin, setPin] = useState(['', '', '', '']);
+  const [pinLength, setPinLength] = useState(4);
+  const [pin, setPin] = useState<string[]>(['', '', '', '']);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const guid = searchParams.get('guid');
+  const { code: paramCode } = useParams<{ code?: string }>();
+  const tagIdentifier = (paramCode || searchParams.get('code') || searchParams.get('guid') || '').trim();
+
+  const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
 
   useEffect(() => {
-    if (!guid) {
-      navigate('/404');
+    if (!tagIdentifier) {
+      navigate('/404', { replace: true });
+      return;
     }
-  }, [guid, navigate]);
 
-  const inputRefs = [
-    useRef<HTMLInputElement>(null),
-    useRef<HTMLInputElement>(null),
-    useRef<HTMLInputElement>(null),
-    useRef<HTMLInputElement>(null)
-  ];
+    let cancelled = false;
+    const loadPinMetadata = async () => {
+      try {
+        const res = await fetch(
+          `${import.meta.env.VITE_API_URL.replace(/\/$/, '')}/api/tag/${encodeURIComponent(tagIdentifier)}/pin-status`
+        );
+        const data = await res.json();
+        if (cancelled) return;
+
+        if (res.ok && data.success && data.data) {
+          if (data.data.isActive && !data.data.isPinProtected) {
+            navigate(`/public-profile/${data.data.shortCode || tagIdentifier}`, { replace: true });
+            return;
+          }
+
+          const resolvedLength = Math.min(Math.max(Number(data.data.pinLength) || 4, 4), 12);
+          setPinLength(resolvedLength);
+          setPin(Array(resolvedLength).fill(''));
+        }
+      } catch {
+        // Keep default 4-box PIN input if status check cannot be reached on mount
+      }
+    };
+
+    loadPinMetadata();
+    return () => {
+      cancelled = true;
+    };
+  }, [tagIdentifier, navigate]);
 
   const handleChange = (index: number, value: string) => {
-    if (!/^\d*$/.test(value)) return;
+    if (!/^[a-zA-Z0-9]*$/.test(value)) return;
 
     const newPin = [...pin];
     newPin[index] = value.slice(-1);
     setPin(newPin);
 
-    if (value !== '' && index < 3) {
-      inputRefs[index + 1].current?.focus();
+    if (value !== '' && index < pin.length - 1) {
+      inputRefs.current[index + 1]?.focus();
     }
+  };
+
+  const handlePaste = (index: number, e: React.ClipboardEvent<HTMLInputElement>) => {
+    const pasted = e.clipboardData.getData('text').replace(/[^a-zA-Z0-9]/g, '');
+    if (!pasted) return;
+    e.preventDefault();
+
+    const newPin = [...pin];
+    let lastIndex = index;
+    for (let offset = 0; offset < pasted.length && index + offset < newPin.length; offset++) {
+      newPin[index + offset] = pasted[offset];
+      lastIndex = index + offset;
+    }
+    setPin(newPin);
+
+    const nextFocus = Math.min(lastIndex + 1, newPin.length - 1);
+    inputRefs.current[nextFocus]?.focus();
   };
 
   const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Backspace' && pin[index] === '' && index > 0) {
-      inputRefs[index - 1].current?.focus();
+      inputRefs.current[index - 1]?.focus();
+    } else if (e.key === 'Enter') {
+      handleVerify();
     }
   };
 
   const handleVerify = async () => {
-    const enteredPin = pin.join('');
-    if (enteredPin.length < 4) {
-      setError('Please enter a 4-digit PIN');
+    const enteredPin = pin.join('').trim();
+    if (enteredPin.length < pinLength) {
+      setError(`Please enter the ${pinLength}-character PIN`);
       return;
     }
 
-    if (!guid) {
-      setError('No Tag GUID found. Please scan the QR code again.');
+    if (!tagIdentifier) {
+      setError('No bracelet code found. Please scan the QR code again.');
       return;
     }
 
@@ -57,29 +103,28 @@ export default function PIN() {
     setError('');
 
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL.replace(/\/$/, "")}/api/verify-pin`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL.replace(/\/$/, '')}/api/verify-pin`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ guid, pin: enteredPin }),
+        body: JSON.stringify({ guid: tagIdentifier, pin: enteredPin }),
       });
       const data = await res.json();
 
       if (res.ok && data.success) {
-        // Store for linking after signup/signin
-        sessionStorage.setItem('pendingTagGuid', guid);
+        const canonicalGuid = data.data?.guid || tagIdentifier;
+        const shortSlug = data.data?.shortCode || tagIdentifier;
+        sessionStorage.setItem('pendingTagGuid', canonicalGuid);
         sessionStorage.setItem('pendingTagPin', enteredPin);
-        
+
         if (data.data.isLinked) {
-          // Emergency access
-          navigate(`/public-profile/${guid}`);
+          navigate(`/public-profile/${shortSlug}`);
         } else {
-          // Onboarding
           navigate('/signup');
         }
       } else {
         setError(data.message || 'Invalid PIN');
-        setPin(['', '', '', '']);
-        inputRefs[0].current?.focus();
+        setPin(Array(pinLength).fill(''));
+        inputRefs.current[0]?.focus();
       }
     } catch (err) {
       console.error('PIN verification error:', err);
@@ -89,14 +134,13 @@ export default function PIN() {
     }
   };
 
+  const isCompactBoxes = pin.length > 4;
+
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-2 md:p-6 bg-transparent min-h-screen font-body pb-[10vh]">
-
-      <div className="w-full max-w-[550px] md:max-w-[360px] flex flex-col items-center">
-
+      <div className="w-full max-w-[550px] md:max-w-[380px] flex flex-col items-center">
         {/* Clay Card Content */}
-        <div className="clay-card relative w-full py-6 px-3 md:px-8">
-
+        <div className="clay-card relative w-full py-6 px-4 md:px-8">
           {/* Logo inside card */}
           <div className="mb-4 flex justify-center">
             <img src={logo} alt="LifeTag Logo" className="w-24 h-24 object-contain" />
@@ -107,20 +151,30 @@ export default function PIN() {
           </h2>
 
           <p className="text-[12px] text-slate-400 text-center mb-4 font-normal leading-relaxed">
-            Enter the 4-digit code found on the back of the bracelet
+            Enter the {pinLength}-character PIN found on the back of the bracelet (letters & numbers)
           </p>
 
-          <div className="flex gap-[12px] justify-center mb-6 w-full">
-            {pin.map((digit, i) => (
+          <div className="flex flex-wrap gap-[10px] justify-center mb-6 w-full">
+            {pin.map((char, i) => (
               <input
                 key={i}
-                ref={inputRefs[i]}
+                ref={(el) => {
+                  inputRefs.current[i] = el;
+                }}
                 type="text"
-                inputMode="numeric"
-                value={digit}
+                inputMode="text"
+                autoCapitalize="characters"
+                autoCorrect="off"
+                spellCheck={false}
+                value={char}
                 onChange={(e) => handleChange(i, e.target.value)}
+                onPaste={(e) => handlePaste(i, e)}
                 onKeyDown={(e) => handleKeyDown(i, e)}
-                className="pin-box"
+                className={
+                  isCompactBoxes
+                    ? 'pin-box !w-10 !h-12 !text-lg'
+                    : 'pin-box'
+                }
                 maxLength={1}
               />
             ))}

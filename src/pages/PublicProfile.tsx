@@ -11,6 +11,7 @@ export default function PublicProfile() {
   const isInternal = searchParams.get('internal') === 'true';
 
   const [profile, setProfile] = useState<any>(null);
+  const [resolvedTagGuid, setResolvedTagGuid] = useState<string | null>(null);
   const [emergencySession, setEmergencySession] = useState<any>(null);
   const [emergencyState, setEmergencyState] = useState<'idle' | 'pending' | 'acknowledged' | 'failed'>('idle');
   const [locError, setLocError] = useState<string | null>(null);
@@ -20,17 +21,30 @@ export default function PublicProfile() {
     const fetchProfile = async () => {
       let userName = 'Unknown User';
       let fetchUrl = '';
+      let fallbackCode: string = guid || '';
       
       if (guid) {
-        // New GUID-based public access
+        // GUID or ShortCode public access
         try {
-            const statusRes = await fetch(`${import.meta.env.VITE_API_URL.replace(/\/$/, "")}/api/tag/${guid}/pin-status`);
+            const statusRes = await fetch(`${import.meta.env.VITE_API_URL.replace(/\/$/, "")}/api/tag/${encodeURIComponent(guid)}/pin-status`);
             const statusData = await statusRes.json();
+
+            if (!statusRes.ok || !statusData.success || !statusData.data) {
+                if (!isInternal) {
+                    navigate('/404');
+                }
+                return;
+            }
+
+            if (statusData.data.guid) {
+                setResolvedTagGuid(statusData.data.guid);
+            }
+            fallbackCode = statusData.data.shortCode || guid;
             
-            if (!statusData.success || !statusData.data.isActive) {
+            if (!statusData.data.isActive) {
                 // If the tag is not active (unassigned), start onboarding
                 if (!isInternal) {
-                    navigate(`/pin?guid=${guid}`);
+                    navigate(`/pin?code=${encodeURIComponent(fallbackCode)}`);
                     return;
                 }
             }
@@ -38,12 +52,12 @@ export default function PublicProfile() {
             if (statusData.data.isPinProtected) {
                 const storedPin = sessionStorage.getItem('pendingTagPin');
                 if (!storedPin) {
-                    navigate(`/pin?guid=${guid}`);
+                    navigate(`/pin?code=${encodeURIComponent(fallbackCode)}`);
                     return;
                 }
-                fetchUrl = `${import.meta.env.VITE_API_URL.replace(/\/$/, "")}/api/public-profile/${guid}?pin=${storedPin}`;
+                fetchUrl = `${import.meta.env.VITE_API_URL.replace(/\/$/, "")}/api/public-profile/${encodeURIComponent(guid)}?pin=${encodeURIComponent(storedPin)}`;
             } else {
-                fetchUrl = `${import.meta.env.VITE_API_URL.replace(/\/$/, "")}/api/public-profile/${guid}`;
+                fetchUrl = `${import.meta.env.VITE_API_URL.replace(/\/$/, "")}/api/public-profile/${encodeURIComponent(guid)}`;
             }
         } catch (e) {
             if (!isInternal) {
@@ -72,6 +86,11 @@ export default function PublicProfile() {
             setProfile({ ...data.data, fullName: data.data.fullName || userName });
           } else {
             if (guid && !isInternal) {
+              if (data.message === 'PIN verification required') {
+                sessionStorage.removeItem('pendingTagPin');
+                navigate(`/pin?code=${encodeURIComponent(fallbackCode || guid)}`);
+                return;
+              }
               navigate('/404');
               return;
             }
@@ -168,7 +187,7 @@ export default function PublicProfile() {
       async (position) => {
         try {
           const res = await emergencyApi.triggerEmergency(
-            guid!, 
+            resolvedTagGuid || guid!, 
             position.coords.latitude, 
             position.coords.longitude
           );
@@ -450,7 +469,7 @@ export default function PublicProfile() {
           <button
             onClick={() => {
               if (isInternal) navigate('/dashboard');
-              else navigate(`/signin?editTagGuid=${guid || ''}`);
+              else navigate(`/signin?editTagGuid=${resolvedTagGuid || guid || ''}`);
             }}
             className="w-full bg-gradient-to-t from-[#005adc] to-[#3a9fff] border border-[#68b7ff] text-white font-bold py-3.5 rounded-[16px] shadow-[0px_10px_20px_rgba(58,159,255,0.4),inset_0px_2px_4px_rgba(255,255,255,0.3)] flex items-center justify-center gap-2 text-[15px] hover:-translate-y-1 transition-transform"
           >
@@ -463,7 +482,7 @@ export default function PublicProfile() {
            <button
              onClick={() => {
                if (isInternal) navigate('/dashboard');
-               else navigate(`/signin?editTagGuid=${guid || ''}`);
+               else navigate(`/signin?editTagGuid=${resolvedTagGuid || guid || ''}`);
              }}
              className="text-[12px] text-slate-400 font-bold hover:text-slate-600 transition-colors"
            >
