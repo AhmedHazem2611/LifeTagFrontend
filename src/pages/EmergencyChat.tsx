@@ -38,7 +38,6 @@ export default function EmergencyChat() {
   const [isSending, setIsSending] = useState(false);
 
   const chatScrollRef = useRef<HTMLElement>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const prevMessagesRef = useRef<EmergencyMessageResponse[]>([]);
   const hasInitializedMessagesRef = useRef(false);
   const forceScrollNextRef = useRef(false);
@@ -64,8 +63,8 @@ export default function EmergencyChat() {
       const isNearBottom =
         !el || el.scrollHeight - el.scrollTop - el.clientHeight < 140;
 
-      if (forceScrollNextRef.current || isNearBottom) {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      if (el && (forceScrollNextRef.current || isNearBottom)) {
+        el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
       }
       forceScrollNextRef.current = false;
     }
@@ -199,13 +198,13 @@ export default function EmergencyChat() {
   const tileData = coords ? getTileData(coords.lat, coords.lng) : null;
 
   return (
-    <div className="fixed inset-0 z-40 flex flex-col bg-[#f8fbff] font-body overflow-hidden">
+    <div className="fixed inset-0 h-[100dvh] max-h-[100dvh] w-full z-40 flex flex-col bg-[#f8fbff] font-body overflow-hidden">
       {/* Decorative Background Elements */}
       <div className="absolute top-[-100px] right-[-100px] w-[300px] h-[300px] bg-red-50/50 rounded-full blur-[100px] pointer-events-none" />
       <div className="absolute bottom-[-100px] left-[-100px] w-[400px] h-[400px] bg-blue-50/50 rounded-full blur-[120px] pointer-events-none" />
 
-      {/* Header (flex-shrink-0, never overlaps scrollable content) */}
-      <header className="shrink-0 relative z-10 bg-white/85 backdrop-blur-xl border-b border-slate-100 px-6 py-4 flex items-center justify-between">
+      {/* Header (pinned at top) */}
+      <header className="shrink-0 relative z-20 bg-white/90 backdrop-blur-xl border-b border-slate-100 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <button
             onClick={() => navigate(-1)}
@@ -233,7 +232,7 @@ export default function EmergencyChat() {
       </header>
 
       {/* Scrollable Conversation Area */}
-      <main ref={chatScrollRef} className="flex-1 overflow-y-auto px-4 md:px-6 py-6 flex flex-col items-center relative z-10">
+      <main ref={chatScrollRef} className="flex-1 min-h-0 w-full overflow-y-auto overscroll-contain px-4 md:px-6 py-6 flex flex-col items-center relative z-10">
         <div className="w-full max-w-2xl flex flex-col gap-5">
           {/* Verified Emergency Location Map Card */}
           {mapsUrl && tileData ? (
@@ -241,10 +240,10 @@ export default function EmergencyChat() {
               href={mapsUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="block rounded-[24px] overflow-hidden border-2 border-slate-800/80 shadow-[0_12px_30px_rgba(15,23,42,0.14)] bg-[#1b1f24] group transition-transform active:scale-[0.99]"
+              className="block rounded-[24px] overflow-hidden border-2 border-slate-800/80 shadow-[0_12px_30px_rgba(15,23,42,0.14)] bg-[#2b2e33] group transition-transform active:scale-[0.99]"
             >
-              <div className="relative w-full h-[180px] overflow-hidden bg-[#1b1f24]">
-                {/* 5x3 OSM/CartoDB dark tile grid centered on exact GPS coordinates */}
+              <div className="relative w-full h-[180px] overflow-hidden bg-[#2b2e33]">
+                {/* 5x3 Esri Dark Gray tile grid centered on exact GPS coordinates */}
                 <div
                   className="absolute grid grid-cols-5 pointer-events-none select-none"
                   style={{
@@ -259,15 +258,27 @@ export default function EmergencyChat() {
                       const x = (((tileData.tileX + dx) % tileData.n) + tileData.n) % tileData.n;
                       const y = tileData.tileY + dy;
                       return (
-                        <img
-                          key={`${dx}_${dy}`}
-                          src={`https://basemaps.cartocdn.com/dark_all/${MAP_ZOOM}/${x}/${y}.png`}
-                          alt=""
-                          width={TILE_SIZE}
-                          height={TILE_SIZE}
-                          className="w-[256px] h-[256px] block"
-                          draggable={false}
-                        />
+                        <div key={`${dx}_${dy}`} className="relative w-[256px] h-[256px]">
+                          <img
+                            src={`https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/${MAP_ZOOM}/${y}/${x}`}
+                            alt=""
+                            width={TILE_SIZE}
+                            height={TILE_SIZE}
+                            className="w-[256px] h-[256px] block"
+                            draggable={false}
+                          />
+                          <img
+                            src={`https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/${MAP_ZOOM}/${y}/${x}`}
+                            alt=""
+                            width={TILE_SIZE}
+                            height={TILE_SIZE}
+                            className="w-[256px] h-[256px] block absolute inset-0"
+                            draggable={false}
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                            }}
+                          />
+                        </div>
                       );
                     })
                   )}
@@ -339,13 +350,12 @@ export default function EmergencyChat() {
                 </div>
               );
             })}
-            <div ref={messagesEndRef} />
           </div>
         </div>
       </main>
 
-      {/* Footer Composer (flex-shrink-0, sits cleanly at bottom) */}
-      <footer className="shrink-0 relative z-10 p-4 md:p-6 bg-gradient-to-t from-[#f8fbff] via-[#f8fbff]/90 to-transparent">
+      {/* Footer Composer (stays fixed at bottom of viewport) */}
+      <footer className="shrink-0 relative z-20 p-4 md:p-6 bg-white/80 backdrop-blur-md border-t border-slate-100/80">
         <div className="max-w-2xl mx-auto">
           <div className="bg-white/85 backdrop-blur-xl border border-white p-3 rounded-[32px] shadow-[0_20px_50px_rgba(0,0,0,0.1)] flex items-center gap-3">
             <input
