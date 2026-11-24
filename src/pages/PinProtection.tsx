@@ -56,9 +56,9 @@ export default function PinProtection() {
         </div>
 
         <div className="flex gap-2 w-full max-w-xs mx-auto mb-10">
-          {Array.from({ length: 5 }).map((_, i) => (
+          {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="flex-1 h-2 rounded-full bg-slate-200 overflow-hidden">
-              {i <= 3 && (
+              {i <= 2 && (
                 <div
                   className="h-full rounded-full animate-[pulse_1s_ease-in-out_1]"
                   style={{

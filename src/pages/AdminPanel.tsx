@@ -11,7 +11,6 @@ interface AdminTag {
     isPinProtected: boolean;
     linkedUserId: number | null;
     linkedUserName: string | null;
-    templateType: string | null;
 }
 
 interface AdminUser {
@@ -20,7 +19,6 @@ interface AdminUser {
     email: string;
     linkedTagGuid: string | null;
     linkedTagShortCode: string | null;
-    templateType: string | null;
 }
 
 export default function AdminPanel() {
@@ -229,7 +227,6 @@ export default function AdminPanel() {
                                         <>
                                             <th className="px-8 py-5 text-[11px] font-black text-slate-400 uppercase tracking-[0.15em]">User Identity</th>
                                             <th className="px-8 py-5 text-[11px] font-black text-slate-400 uppercase tracking-[0.15em]">Active Bracelet</th>
-                                            <th className="px-8 py-5 text-[11px] font-black text-slate-400 uppercase tracking-[0.15em]">Profile Mode</th>
                                             <th className="px-8 py-5 text-[11px] font-black text-slate-400 uppercase tracking-[0.15em] text-right">Actions</th>
                                         </>
                                     )}
@@ -275,7 +272,6 @@ export default function AdminPanel() {
                                                         </div>
                                                         <div>
                                                             <div className="font-extrabold text-slate-800 text-[14px]">{tag.linkedUserName}</div>
-                                                            <div className="text-[11px] text-blue-500 font-black uppercase tracking-tight">{tag.templateType} Mode</div>
                                                         </div>
                                                     </div>
                                                 ) : (
@@ -341,11 +337,6 @@ export default function AdminPanel() {
                                                     <span className="text-slate-300 text-xs font-black uppercase tracking-widest italic">No Link</span>
                                                 )}
                                             </td>
-                                            <td className="px-8 py-6">
-                                                <span className={`px-3 py-1 text-[10px] font-black uppercase rounded-lg border shadow-sm ${user.templateType ? 'bg-indigo-50 text-indigo-600 border-indigo-100 shadow-indigo-100/50' : 'bg-slate-50 text-slate-400 border-slate-100'}`}>
-                                                    {user.templateType || 'Unset'}
-                                                </span>
-                                            </td>
                                             <td className="px-8 py-6 text-right">
                                                 <div className="flex justify-end gap-1 opacity-40 group-hover:opacity-100 transition-opacity">
                                                     {user.linkedTagGuid && (
@@ -360,7 +351,7 @@ export default function AdminPanel() {
                                             </td>
                                         </tr>
                                     )) : (
-                                        <tr><td colSpan={4} className="p-20 text-center font-bold text-slate-300">No Users Found</td></tr>
+                                        <tr><td colSpan={3} className="p-20 text-center font-bold text-slate-300">No Users Found</td></tr>
                                     )
                                 )}
                             </tbody>

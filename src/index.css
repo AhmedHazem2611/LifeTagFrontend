@@ -56,6 +56,36 @@
     cursor: not-allowed;
   }
 
+  /* Pink Clay Button Variant */
+  .clay-button-pink {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 600;
+    font-size: 16px;
+    background: linear-gradient(333deg, #db2777 0%, #f9a8d4 100%);
+    box-shadow:
+      0px 10px 24px rgba(244, 114, 182, 0.55),
+      inset 3px 1px 11px rgba(255, 255, 255, 0.55),
+      inset 0px -4px 10px #db2777;
+    border-radius: 14px;
+    height: 48px;
+    padding: 0 24px;
+    color: white;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s ease;
+  }
+
+  .clay-button-pink:hover {
+    transform: translateY(-2px);
+  }
+
+  .clay-button-pink:active {
+    transform: translateY(0);
+  }
+
   /* Clay Card - High Fidelity with High-Depth Shadows */
   .clay-card {
     background-color: white;
@@ -108,15 +138,19 @@
     box-shadow: 0 0 0 3px rgba(0, 98, 255, 0.15);
   }
 
-  /* Shared Auth Form Input - Clean iOS style */
+  /* Shared Secondary Clay Button */
   .clay-button-white {
-    border-radius: 13px;
-    border: 0;
-    box-shadow: 0px 8px 16px rgba(0, 30, 80, 0.08), 0px 10px 20px rgba(172, 203, 250, 0.15), inset 3px 2px 10px rgba(255, 255, 255, 1), inset 0px -4px 10px rgba(220, 230, 245, 0.7);
-    background: linear-gradient(333deg, #f8fafc 0%, #ffffff 100%);
-    color: #334155;
+    border-radius: 14px;
+    border: none;
+    box-shadow:
+      0px 10px 22px rgba(130, 158, 204, 0.35),
+      0px 3px 8px rgba(15, 23, 42, 0.06),
+      inset 4px 4px 10px rgba(255, 255, 255, 0.95),
+      inset -4px -5px 10px rgba(178, 199, 235, 0.75);
+    background: linear-gradient(333deg, #e3ecfc 0%, #f7faff 100%);
+    color: #1e293b;
     font-family: var(--font-display);
-    font-weight: 600;
+    font-weight: 700;
     font-size: 15px;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
     display: inline-flex;
@@ -129,7 +163,11 @@
 
   .clay-button-white:hover {
     transform: translateY(-2px);
-    box-shadow: 0px 14px 28px rgba(172, 203, 250, 0.25), inset 3px 2px 10px rgba(255, 255, 255, 1), inset 0px -4px 10px rgba(220, 230, 245, 0.7);
+    box-shadow:
+      0px 14px 28px rgba(130, 158, 204, 0.45),
+      0px 5px 12px rgba(15, 23, 42, 0.08),
+      inset 4px 4px 10px rgba(255, 255, 255, 1),
+      inset -4px -5px 12px rgba(165, 189, 230, 0.85);
   }
 
   .clay-button-white:active {

@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import logo from '../assets/logo.png';
+import PasswordInput from '../components/PasswordInput';
+import { extractApiErrorMessage, isValidEmail } from '../utils/formErrors';
 
 export default function SignIn() {
   const navigate = useNavigate();
@@ -9,11 +11,30 @@ export default function SignIn() {
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
     setError('');
+    setFieldErrors({});
+
+    const nextErrors: Record<string, string> = {};
+    if (!formData.email.trim()) {
+      nextErrors.email = 'Email is required.';
+    } else if (!isValidEmail(formData.email)) {
+      nextErrors.email = 'Please enter a valid email address.';
+    }
+    if (!formData.password) {
+      nextErrors.password = 'Password is required.';
+    }
+
+    if (Object.keys(nextErrors).length > 0) {
+      setFieldErrors(nextErrors);
+      setError(Object.values(nextErrors).join(' '));
+      return;
+    }
+
+    setIsLoading(true);
 
     try {
       const res = await fetch(`${import.meta.env.VITE_API_URL.replace(/\/$/, "")}/api/signin`, {
@@ -63,7 +84,7 @@ export default function SignIn() {
           navigate('/dashboard');
         }
       } else {
-        setError(data.message || 'Signin failed');
+        setError(extractApiErrorMessage(data, 'Signin failed'));
       }
     } catch (err) {
       setError('Network error, please try again.');
@@ -77,39 +98,28 @@ export default function SignIn() {
 
       <div className="w-full max-w-[400px] flex flex-col items-center">
 
-        {/* Layout Top: Logo */}
+        {/* Layout Top: Logo -> Progress Bar */}
         <div className="mb-6 flex justify-center">
           <img src={logo} alt="LifeTag Logo" className="w-28 h-28 object-contain drop-shadow-sm" />
         </div>
 
-        {/* Progress Bar & Tabs (Hidden in edit mode) */}
+        {/* Progress Bar (Hidden in edit mode) */}
         {!editTagGuid && (
-          <>
-            <div className="flex gap-2 w-full max-w-xs mx-auto mb-8">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="flex-1 h-2 rounded-full bg-slate-200 overflow-hidden">
-                  {i <= 0 && (
-                    <div
-                      className="h-full rounded-full animate-[pulse_1s_ease-in-out_1]"
-                      style={{
-                        background: 'linear-gradient(333deg, hsl(216 100% 43%) 0%, hsl(196 93% 76%) 100%)',
-                        width: '100%'
-                      }}
-                    />
-                  )}
-                </div>
-              ))}
-            </div>
-
-            <div className="flex w-full bg-[#f1f5f9] rounded-xl p-[4px] mb-8">
-              <Link to="/signup" className="flex-1 text-center py-2 rounded-lg text-[13px] font-semibold text-slate-400 hover:text-slate-600 transition-all">
-                Sign Up
-              </Link>
-              <div className="flex-1 bg-white text-center py-2 rounded-lg text-[13px] font-semibold shadow-sm text-slate-800 transition-all cursor-default">
-                Sign In
+          <div className="flex gap-2 w-full max-w-xs mx-auto mb-8">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="flex-1 h-2 rounded-full bg-slate-200 overflow-hidden">
+                {i <= 0 && (
+                  <div
+                    className="h-full rounded-full animate-[pulse_1s_ease-in-out_1]"
+                    style={{
+                      background: 'linear-gradient(333deg, hsl(216 100% 43%) 0%, hsl(196 93% 76%) 100%)',
+                      width: '100%'
+                    }}
+                  />
+                )}
               </div>
-            </div>
-          </>
+            ))}
+          </div>
         )}
 
         {/* Edit Mode Title */}
@@ -119,30 +129,51 @@ export default function SignIn() {
 
         {/* Clay Card Content */}
         <div className="clay-card relative w-full">
+          {/* Tabs (Hidden in edit mode) */}
+          {!editTagGuid && (
+            <div className="flex w-full bg-[#f1f5f9] rounded-xl p-[4px] mb-8">
+              <Link to="/signup" className="flex-1 text-center py-2 rounded-lg text-[13px] font-semibold text-slate-400 hover:text-slate-600 transition-all">
+                Sign Up
+              </Link>
+              <div className="flex-1 bg-white text-center py-2 rounded-lg text-[13px] font-semibold shadow-sm text-slate-800 transition-all cursor-default">
+                Sign In
+              </div>
+            </div>
+          )}
+
           {/* Form */}
-          <form onSubmit={handleSignIn} className="w-full flex flex-col gap-5">
+          <form noValidate onSubmit={handleSignIn} className="w-full flex flex-col gap-5">
             <div>
               <label className="block text-[13px] font-medium text-slate-800 mb-2 ml-1">Email</label>
               <input
                 type="email"
                 placeholder="john@example.com"
-                required
-                className="auth-input"
+                className={`auth-input ${fieldErrors.email ? '!border-red-400 bg-red-50/30' : ''}`}
                 value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                onChange={(e) => {
+                  setFormData({ ...formData, email: e.target.value });
+                  if (fieldErrors.email) setFieldErrors((p) => ({ ...p, email: '' }));
+                }}
               />
+              {fieldErrors.email && (
+                <p className="text-[11px] font-semibold text-red-500 mt-1 ml-1">{fieldErrors.email}</p>
+              )}
             </div>
 
             <div className="mb-2">
               <label className="block text-[13px] font-medium text-slate-800 mb-2 ml-1">Password</label>
-              <input
-                type="password"
+              <PasswordInput
                 placeholder="••••••••"
-                required
-                className="auth-input tracking-widest"
+                className={fieldErrors.password ? '!border-red-400 bg-red-50/30' : ''}
                 value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                onChange={(e) => {
+                  setFormData({ ...formData, password: e.target.value });
+                  if (fieldErrors.password) setFieldErrors((p) => ({ ...p, password: '' }));
+                }}
               />
+              {fieldErrors.password && (
+                <p className="text-[11px] font-semibold text-red-500 mt-1 ml-1">{fieldErrors.password}</p>
+              )}
             </div>
 
             {error && (

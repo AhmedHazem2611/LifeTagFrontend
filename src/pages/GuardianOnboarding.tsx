@@ -15,12 +15,12 @@ export default function GuardianOnboarding() {
 
         {/* Progress Bar */}
         <div className="flex gap-2 w-full max-w-xs mx-auto mb-10">
-          {Array.from({ length: 5 }).map((_, i) => (
+          {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="flex-1 h-2 rounded-full bg-slate-200 overflow-hidden">
               <div
                 className="h-full rounded-full"
                 style={{
-                  background: i <= 4 ? 'linear-gradient(333deg, hsl(216 100% 43%) 0%, hsl(196 93% 76%) 100%)' : 'transparent',
+                  background: i <= 3 ? 'linear-gradient(333deg, hsl(216 100% 43%) 0%, hsl(196 93% 76%) 100%)' : 'transparent',
                   width: '100%'
                 }}
               />

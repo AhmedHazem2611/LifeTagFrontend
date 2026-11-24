@@ -311,8 +311,11 @@ export default function PublicProfile() {
           <div className="bg-[#fff1f2] text-[#f43f5e] text-[10px] font-extrabold px-3 py-1.5 rounded-full tracking-wider uppercase mb-2 border border-[#ffe4e6]">
             EMERGENCY PROFILE
           </div>
-          {(profile.templateType === 'Medical' || !profile.templateType) && (
-            <h1 className="text-[26px] font-black text-[#1e293b] tracking-tight">{profile.fullName || 'Unknown User'}</h1>
+          <h1 className="text-[26px] font-black text-[#1e293b] tracking-tight">{profile.fullName || 'Unknown User'}</h1>
+          {displayAge !== undefined && displayAge !== null && displayAge !== '' && (
+            <div className="bg-blue-50 text-blue-600 font-bold text-[12px] px-3 py-1 rounded-full border border-blue-100 mt-1.5">
+              Age: {displayAge}
+            </div>
           )}
         </div>
 
@@ -325,20 +328,6 @@ export default function PublicProfile() {
 
         <div className="flex flex-col gap-4">
 
-          {/* Child Identity Section */}
-          {profile.templateType === 'Child' && (
-             <div className="clay-section p-6 flex flex-col items-center mb-2 border border-[#dbeafe] bg-gradient-to-b from-[#f8fbff] to-white">
-                <h1 className="text-[28px] font-black text-[#1e293b] tracking-tight mb-1">{profile.fullName || 'Unknown Child'}</h1>
-                {displayAge !== undefined && displayAge !== null && displayAge !== '' && (
-                  <div className="bg-blue-50 text-blue-600 font-bold text-[14px] px-4 py-1.5 rounded-full border border-blue-100 flex items-center gap-1.5 mt-2">
-                     Age: {displayAge}
-                  </div>
-                )}
-             </div>
-          )}
-
-          {(profile.templateType === 'Medical' || !profile.templateType) && (
-            <>
               {/* Blood Type */}
               {profile.bloodType && (
                 <div className="clay-section p-6 flex flex-col items-center">
@@ -384,25 +373,18 @@ export default function PublicProfile() {
                     )) : <span className="text-[12px] text-slate-400 font-medium">None reported</span>}
                  </div>
               </div>
-            </>
-          )}
 
           {/* Address */}
-          {(profile.address || profile.templateType === 'Child') && profile.templateType !== 'Custom' && (
+          {profile.address && (
             <div className="clay-section p-6 flex flex-col">
               <div className="flex items-center gap-2 text-[#475569] font-bold text-[14px] mb-3">
                  <FileText size={18} className="text-[#64748b]" strokeWidth={2.5} /> Address
               </div>
-              {profile.address ? (
-                <p className="text-[14px] font-medium text-slate-700 bg-[#f4f6fb] px-4 py-3 rounded-xl border border-slate-100 shadow-sm whitespace-pre-wrap">{profile.address}</p>
-              ) : (
-                <p className="text-[13px] text-slate-400 font-medium">No address provided</p>
-              )}
+              <p className="text-[14px] font-medium text-slate-700 bg-[#f4f6fb] px-4 py-3 rounded-xl border border-slate-100 shadow-sm whitespace-pre-wrap">{profile.address}</p>
             </div>
           )}
 
           {/* Emergency Contacts */}
-          {(profile.templateType !== 'Custom' || profile.emergencyContacts?.length > 0) && (
           <div className="clay-section p-6">
              <div className="flex items-center gap-2 text-[#475569] font-bold text-[14px] mb-3">
                 <Phone size={18} className="text-[#22c55e]" strokeWidth={2.5} /> Emergency Contacts
@@ -421,10 +403,9 @@ export default function PublicProfile() {
                 )) : <span className="text-[12px] text-slate-400 font-medium">None reported</span>}
              </div>
           </div>
-          )}
 
           {/* Notes */}
-          {profile.notes && profile.templateType !== 'Custom' && (
+          {profile.notes && (
               <div className="clay-section p-6">
                  <div className="flex items-center gap-2 text-[#475569] font-bold text-[14px] mb-3">
                     <FileText size={18} className="text-[#475569]" strokeWidth={2.5} /> Notes
@@ -432,30 +413,6 @@ export default function PublicProfile() {
                  <p className="text-[13px] font-medium text-slate-700 bg-white/50 px-4 py-3 rounded-xl border border-slate-100 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] whitespace-pre-wrap">{profile.notes}</p>
               </div>
           )}
-
-          {/* Custom Sections */}
-          {profile.templateType === 'Custom' && profile.customSections?.map((sec: any, idx: number) => {
-            const getIconForTitle = (title: string) => {
-              const t = (title || '').toLowerCase();
-              if (t.includes('medic') || t.includes('health') || t.includes('condition') || t.includes('surgery')) return <HeartPulse size={18} className="text-[#f87171]" strokeWidth={2.5} />;
-              if (t.includes('pill') || t.includes('medication') || t.includes('drug')) return <Pill size={18} className="text-[#2563eb]" strokeWidth={2.5} />;
-              if (t.includes('allerg')) return <AlertTriangle size={18} className="text-[#f87171]" strokeWidth={2.5} />;
-              if (t.includes('contact') || t.includes('phone')) return <Phone size={18} className="text-[#22c55e]" strokeWidth={2.5} />;
-              return <FileText size={18} className="text-[#60a5fa]" strokeWidth={2.5} />;
-            };
-            return (
-              <div key={`custom-${idx}`} className="clay-section p-6">
-                 <div className="flex items-center gap-2 text-[#475569] font-bold text-[14px] mb-3">
-                    {getIconForTitle(sec.name)} {sec.name}
-                 </div>
-                 <div className="flex flex-wrap gap-2">
-                    {sec.items?.length > 0 ? sec.items.map((item: string, itemIdx: number) => (
-                        <span key={itemIdx} className="bg-[#f4f6fb] text-[#1a1c1e] text-[12px] font-bold px-4 py-1.5 rounded-full border border-slate-100">{item}</span>
-                    )) : <span className="text-[12px] text-slate-400 font-medium">No items</span>}
-                 </div>
-              </div>
-            );
-          })}
 
         </div>
 

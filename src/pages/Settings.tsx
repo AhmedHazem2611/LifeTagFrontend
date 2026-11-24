@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, User, Layout, LogOut, Save } from 'lucide-react';
+import { ArrowLeft, User, LogOut, Save } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 export default function Settings() {
@@ -185,18 +185,6 @@ export default function Settings() {
                 <div className={`bg-white w-[22px] h-[22px] rounded-full shadow-sm transform transition-transform duration-300 ${pinEnabled ? 'translate-x-[22px]' : 'translate-x-[0px]'}`} />
               </div>
             </div>
-          </div>
-
-          {/* Template */}
-          <div className="clay-section p-6 flex flex-col gap-4 w-full">
-            <div className="flex items-center gap-2.5 text-[#1e293b] font-bold text-[15px] mb-2">
-              <Layout size={18} className="text-[#0062ff]" strokeWidth={2.5} /> Template
-            </div>
-            <div className="flex justify-between items-center text-[14px] text-slate-800 font-bold mt-1">
-              <span>Current Template</span>
-              <span className="text-[#0062ff] font-bold text-[14px]">{profile?.templateType || 'Medical'}</span>
-            </div>
-            <button onClick={() => navigate('/choose-template')} className="text-left text-[14px] text-[#0062ff] font-bold mt-2">Change Template {'>'}</button>
           </div>
 
         </div>

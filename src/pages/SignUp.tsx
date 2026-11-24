@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import logo from '../assets/logo.png';
+import PasswordInput from '../components/PasswordInput';
+import { extractApiErrorMessage, isValidEmail } from '../utils/formErrors';
 
 export default function SignUp() {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({ fullName: '', email: '', password: '' });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   // Route guard: Ensure onboarding starts from a verified tag scan
   useEffect(() => {
@@ -18,8 +21,31 @@ export default function SignUp() {
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
     setError('');
+    setFieldErrors({});
+
+    const nextErrors: Record<string, string> = {};
+    if (!formData.fullName.trim()) {
+      nextErrors.fullName = 'Full Name is required.';
+    }
+    if (!formData.email.trim()) {
+      nextErrors.email = 'Email is required.';
+    } else if (!isValidEmail(formData.email)) {
+      nextErrors.email = 'Please enter a valid email address.';
+    }
+    if (!formData.password) {
+      nextErrors.password = 'Password is required.';
+    } else if (formData.password.length < 6) {
+      nextErrors.password = 'Password must be at least 6 characters.';
+    }
+
+    if (Object.keys(nextErrors).length > 0) {
+      setFieldErrors(nextErrors);
+      setError(Object.values(nextErrors).join(' '));
+      return;
+    }
+
+    setIsLoading(true);
 
     try {
       const res = await fetch(`${import.meta.env.VITE_API_URL.replace(/\/$/, "")}/api/signup`, {
@@ -46,9 +72,9 @@ export default function SignUp() {
           sessionStorage.removeItem('pendingTagPin');
         }
 
-        navigate('/choose-template');
+        navigate('/medical-info');
       } else {
-        setError(data.message || 'Signup failed');
+        setError(extractApiErrorMessage(data, 'Signup failed'));
       }
     } catch (err) {
       setError('Network error, please try again.');
@@ -69,7 +95,7 @@ export default function SignUp() {
 
         {/* Progress Bar (from lifeline-tag-aid reference) */}
         <div className="flex gap-2 w-full max-w-xs mx-auto mb-8">
-          {Array.from({ length: 5 }).map((_, i) => (
+          {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="flex-1 h-2 rounded-full bg-slate-200 overflow-hidden">
               {i <= 0 && (
                 <div
@@ -98,19 +124,24 @@ export default function SignUp() {
           </div>
 
           {/* Form */}
-          <form onSubmit={handleSignup} className="w-full flex flex-col gap-5" autoComplete="off">
+          <form noValidate onSubmit={handleSignup} className="w-full flex flex-col gap-5" autoComplete="off">
             <div>
               <label className="block text-[13px] font-medium text-slate-800 mb-2 ml-1">Full Name</label>
               <input
                 type="text"
                 placeholder="John Doe"
-                required
-                className="auth-input"
+                className={`auth-input ${fieldErrors.fullName ? '!border-red-400 bg-red-50/30' : ''}`}
                 value={formData.fullName}
-                onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                onChange={(e) => {
+                  setFormData({ ...formData, fullName: e.target.value });
+                  if (fieldErrors.fullName) setFieldErrors((p) => ({ ...p, fullName: '' }));
+                }}
                 autoComplete="off"
                 data-lpignore="true"
               />
+              {fieldErrors.fullName && (
+                <p className="text-[11px] font-semibold text-red-500 mt-1 ml-1">{fieldErrors.fullName}</p>
+              )}
             </div>
 
             <div>
@@ -118,27 +149,36 @@ export default function SignUp() {
               <input
                 type="email"
                 placeholder="john@example.com"
-                required
-                className="auth-input"
+                className={`auth-input ${fieldErrors.email ? '!border-red-400 bg-red-50/30' : ''}`}
                 value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                onChange={(e) => {
+                  setFormData({ ...formData, email: e.target.value });
+                  if (fieldErrors.email) setFieldErrors((p) => ({ ...p, email: '' }));
+                }}
                 autoComplete="off"
                 data-lpignore="true"
               />
+              {fieldErrors.email && (
+                <p className="text-[11px] font-semibold text-red-500 mt-1 ml-1">{fieldErrors.email}</p>
+              )}
             </div>
 
             <div className="mb-2">
               <label className="block text-[13px] font-medium text-slate-800 mb-2 ml-1">Password</label>
-              <input
-                type="password"
+              <PasswordInput
                 placeholder="••••••••"
-                required
-                className="auth-input tracking-widest"
+                className={fieldErrors.password ? '!border-red-400 bg-red-50/30' : ''}
                 value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                onChange={(e) => {
+                  setFormData({ ...formData, password: e.target.value });
+                  if (fieldErrors.password) setFieldErrors((p) => ({ ...p, password: '' }));
+                }}
                 autoComplete="new-password"
                 data-lpignore="true"
               />
+              {fieldErrors.password && (
+                <p className="text-[11px] font-semibold text-red-500 mt-1 ml-1">{fieldErrors.password}</p>
+              )}
             </div>
 
             {error && (
