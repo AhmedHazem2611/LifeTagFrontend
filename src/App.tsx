@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Outlet, useSearchParams } from 'react-router-dom';
 import PIN from './pages/PIN';
 import SignIn from './pages/SignIn';
 import SignUp from './pages/SignUp';
@@ -14,17 +14,40 @@ import QRHandler from './pages/QRHandler';
 import AdminPanel from './pages/AdminPanel';
 import EmergencyChat from './pages/EmergencyChat';
 import NotFound from './pages/NotFound';
+import LandingPage from './pages/LandingPage';
+
+function AppContainer() {
+  return (
+    <div className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col">
+      <Outlet />
+    </div>
+  );
+}
+
+function RootEntry() {
+  const [searchParams] = useSearchParams();
+  const hasTagQuery = Boolean(searchParams.get('code')?.trim() || searchParams.get('guid')?.trim());
+
+  if (hasTagQuery) {
+    return (
+      <div className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col">
+        <QRHandler />
+      </div>
+    );
+  }
+
+  return <LandingPage />;
+}
 
 function App() {
   return (
     <BrowserRouter>
-      {/* Root Layout */}
       <div className="min-h-screen bg-[#f8fbff] text-gray-900 font-sans flex flex-col">
+        <Routes>
+          <Route path="/" element={<RootEntry />} />
+          <Route path="/home" element={<LandingPage />} />
 
-        {/* Responsive Content Container */}
-        <div className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col">
-          <Routes>
-            <Route path="/" element={<QRHandler />} />
+          <Route element={<AppContainer />}>
             <Route path="/t/:code" element={<QRHandler />} />
             <Route path="/pin" element={<PIN />} />
             <Route path="/pin/:code" element={<PIN />} />
@@ -44,9 +67,8 @@ function App() {
             <Route path="/404" element={<NotFound />} />
             <Route path="/:code" element={<QRHandler />} />
             <Route path="*" element={<NotFound />} />
-          </Routes>
-        </div>
-
+          </Route>
+        </Routes>
       </div>
     </BrowserRouter>
   );

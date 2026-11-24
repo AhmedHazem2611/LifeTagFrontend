@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Tag, Users, Trash2, Unlink, Shield, ShieldOff, RotateCcw, ExternalLink, User as UserIcon, X, KeyRound, Copy, Check } from 'lucide-react';
+import { Tag, Users, Trash2, Unlink, Shield, ShieldOff, RotateCcw, ExternalLink, User as UserIcon, X, KeyRound, Copy, Check, UserCheck, UserX } from 'lucide-react';
 import logo from '../assets/logo.png';
 
 interface AdminTag {
@@ -11,6 +11,8 @@ interface AdminTag {
     isPinProtected: boolean;
     linkedUserId: number | null;
     linkedUserName: string | null;
+    hasGuardian?: boolean;
+    guardianName?: string | null;
 }
 
 interface AdminUser {
@@ -279,7 +281,7 @@ export default function AdminPanel() {
                                                 )}
                                             </td>
                                             <td className="px-8 py-6">
-                                                <div className="flex gap-2">
+                                                <div className="flex flex-wrap gap-2">
                                                     {tag.isActive ? (
                                                         <span className="px-3 py-1 bg-green-50 text-green-600 text-[10px] font-black uppercase rounded-lg border border-green-100 shadow-sm shadow-green-100/50">Active</span>
                                                     ) : (
@@ -290,6 +292,18 @@ export default function AdminPanel() {
                                                             <Shield size={11} strokeWidth={3} /> Guarded
                                                         </span>
                                                     )}
+                                                    {tag.hasGuardian === true ? (
+                                                        <span
+                                                            title={tag.guardianName ? `Guardian: ${tag.guardianName}` : 'Guardian Linked'}
+                                                            className="px-3 py-1 bg-purple-50 text-purple-600 text-[10px] font-black uppercase rounded-lg border border-purple-100 flex items-center gap-1.5 shadow-sm shadow-purple-100/50"
+                                                        >
+                                                            <UserCheck size={11} strokeWidth={3} /> Guardian
+                                                        </span>
+                                                    ) : tag.hasGuardian === false ? (
+                                                        <span className="px-3 py-1 bg-amber-50 text-amber-600 text-[10px] font-black uppercase rounded-lg border border-amber-100 flex items-center gap-1.5">
+                                                            <UserX size={11} strokeWidth={3} /> No Guardian
+                                                        </span>
+                                                    ) : null}
                                                 </div>
                                             </td>
                                             <td className="px-8 py-6 text-right">
