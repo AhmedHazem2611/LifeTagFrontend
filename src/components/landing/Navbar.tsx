@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Menu, X } from 'lucide-react'
 import logo from '../../assets/logo.png'
 
@@ -23,6 +24,7 @@ export function scrollToSection(sectionId: string) {
 }
 
 export function Navbar() {
+  const navigate = useNavigate()
   const [activeId, setActiveId] = useState<string>('home')
   const [scrolled, setScrolled] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -121,6 +123,10 @@ export function Navbar() {
 
           <button
             type="button"
+            onClick={() => {
+              setMobileOpen(false)
+              navigate('/signin')
+            }}
             className="px-7 py-2.5 rounded-full text-[14px] font-semibold text-white bg-gradient-to-r from-[#1a92eb] to-[#0464dc] shadow-[0_8px_20px_rgba(4,100,220,0.3)] hover:brightness-105 active:scale-95 transition-all"
           >
             Login

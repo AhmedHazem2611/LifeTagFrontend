@@ -15,6 +15,7 @@ import AdminPanel from './pages/AdminPanel';
 import EmergencyChat from './pages/EmergencyChat';
 import NotFound from './pages/NotFound';
 import LandingPage from './pages/LandingPage';
+import StolenBracelet from './pages/StolenBracelet';
 
 function AppContainer() {
   return (
@@ -64,6 +65,8 @@ function App() {
             <Route path="/location-history" element={<LocationHistory />} />
             <Route path="/admin" element={<AdminPanel />} />
             <Route path="/emergency-chat/:sessionId" element={<EmergencyChat />} />
+            <Route path="/stolen-or-missing" element={<StolenBracelet />} />
+            <Route path="/stolen" element={<StolenBracelet />} />
             <Route path="/404" element={<NotFound />} />
             <Route path="/:code" element={<QRHandler />} />
             <Route path="*" element={<NotFound />} />

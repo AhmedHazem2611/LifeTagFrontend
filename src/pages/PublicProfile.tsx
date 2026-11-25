@@ -36,10 +36,18 @@ export default function PublicProfile() {
                 return;
             }
 
+            fallbackCode = statusData.data.shortCode || guid;
+
+            if (statusData.data.isStolenOrMissing) {
+                if (!isInternal) {
+                    navigate(`/stolen-or-missing?code=${encodeURIComponent(fallbackCode)}`, { replace: true });
+                }
+                return;
+            }
+
             if (statusData.data.guid) {
                 setResolvedTagGuid(statusData.data.guid);
             }
-            fallbackCode = statusData.data.shortCode || guid;
             
             if (!statusData.data.isActive) {
                 // If the tag is not active (unassigned), start onboarding

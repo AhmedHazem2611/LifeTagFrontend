@@ -1,11 +1,16 @@
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, User, LogOut, Save } from 'lucide-react';
+import { ArrowLeft, User, LogOut, Save, ShieldAlert } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 export default function Settings() {
   const navigate = useNavigate();
   const [pinEnabled, setPinEnabled] = useState(false);
   const [profile, setProfile] = useState<any>(null);
+  const [activeTag, setActiveTag] = useState<{ shortCode?: string; guid?: string; isPinProtected?: boolean } | null>(null);
+  const [isLoadingTag, setIsLoadingTag] = useState(true);
+  const [confirmStolen, setConfirmStolen] = useState(false);
+  const [isReportingStolen, setIsReportingStolen] = useState(false);
+  const [stolenSuccessMsg, setStolenSuccessMsg] = useState('');
   const [isUpdatingAccount, setIsUpdatingAccount] = useState(false);
   const [isUpdatingPin, setIsUpdatingPin] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -25,12 +30,12 @@ export default function Settings() {
     } catch(e) {}
 
     if (userId) {
-      fetch(`${import.meta.env.VITE_API_URL.replace(/\/$/, "")}/api/profile?userId=${userId}`)
+      const apiBase = import.meta.env.VITE_API_URL.replace(/\/$/, "");
+      fetch(`${apiBase}/api/profile?userId=${userId}`)
         .then(res => res.json())
         .then(data => {
           if (data.success && data.data) {
             setProfile({ ...data.data, fullName: data.data.fullName || userName, email: userEmail, userId });
-            setPinEnabled(!!data.data.isPinProtected);
           } else {
               setProfile({ fullName: userName, email: userEmail, userId });
           }
@@ -38,8 +43,26 @@ export default function Settings() {
         .catch(() => {
             setProfile({ fullName: userName, email: userEmail, userId });
         });
+
+      fetch(`${apiBase}/api/active-tag/${userId}`)
+        .then(res => res.ok ? res.json() : null)
+        .then(data => {
+          if (data?.success && data.data) {
+            setActiveTag(data.data);
+            setPinEnabled(!!data.data.isPinProtected);
+          } else {
+            setActiveTag(null);
+            setPinEnabled(false);
+          }
+        })
+        .catch(() => {
+          setActiveTag(null);
+          setPinEnabled(false);
+        })
+        .finally(() => setIsLoadingTag(false));
     } else {
         setProfile({ fullName: userName, email: userEmail, userId });
+        setIsLoadingTag(false);
     }
   }, []);
 
@@ -74,7 +97,7 @@ export default function Settings() {
   };
 
   const handlePinToggle = async () => {
-    if (!profile?.userId || isUpdatingPin) return;
+    if (!profile?.userId || !activeTag || isLoadingTag || isUpdatingPin) return;
     const newPinStatus = !pinEnabled;
     setIsUpdatingPin(true);
     try {
@@ -83,16 +106,41 @@ export default function Settings() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isPinProtected: newPinStatus }),
       });
-      const data = await res.json();
-      if (data.success) {
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.success) {
         setPinEnabled(newPinStatus);
+        setActiveTag(prev => prev ? { ...prev, isPinProtected: newPinStatus } : prev);
       } else {
-        alert(data.message || 'Failed to update PIN settings');
+        alert(data?.message || 'Failed to update PIN settings');
       }
     } catch (err) {
       alert('Network error');
     } finally {
       setIsUpdatingPin(false);
+    }
+  };
+
+  const handleActivateStolenOrMissingMode = async () => {
+    if (!profile?.userId || isReportingStolen) return;
+    setIsReportingStolen(true);
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL.replace(/\/$/, "")}/api/tag/report-stolen-or-missing?userId=${profile.userId}`, {
+        method: 'POST',
+      });
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.success) {
+        localStorage.removeItem('linkedTag');
+        setActiveTag(null);
+        setConfirmStolen(false);
+        setPinEnabled(false);
+        setStolenSuccessMsg('Stolen or missing mode activated. Your bracelet has been unlinked and disabled.');
+      } else {
+        alert(data?.message || `Failed to activate stolen or missing mode (HTTP ${res.status})`);
+      }
+    } catch {
+      alert('Network error');
+    } finally {
+      setIsReportingStolen(false);
     }
   };
 
@@ -177,14 +225,88 @@ export default function Settings() {
                Security
             </div>
             <div className="flex justify-between items-center text-[14px] text-slate-800 font-bold mt-1">
-              <span>PIN Protection</span>
-              <div 
-                className={`w-[52px] h-[30px] rounded-full p-1 cursor-pointer transition-colors duration-300 ease-in-out flex items-center shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)] ${pinEnabled ? 'bg-[#0062ff]' : 'bg-slate-200'} ${isUpdatingPin ? 'opacity-50 cursor-not-allowed' : ''}`}
+              <div className="flex flex-col">
+                <span>PIN Protection</span>
+                {!isLoadingTag && !activeTag && (
+                  <span className="text-[11px] font-medium text-slate-400">Link a bracelet to enable or disable PIN protection</span>
+                )}
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={pinEnabled}
+                aria-label="PIN Protection"
+                disabled={isLoadingTag || !activeTag || isUpdatingPin}
                 onClick={handlePinToggle}
+                className={`w-[52px] h-[30px] rounded-full p-1 transition-colors duration-300 ease-in-out flex items-center shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)] ${pinEnabled ? 'bg-[#0062ff]' : 'bg-slate-200'} ${(isLoadingTag || !activeTag || isUpdatingPin) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
               >
                 <div className={`bg-white w-[22px] h-[22px] rounded-full shadow-sm transform transition-transform duration-300 ${pinEnabled ? 'translate-x-[22px]' : 'translate-x-[0px]'}`} />
-              </div>
+              </button>
             </div>
+          </div>
+
+          {/* Stolen or Missing Mode */}
+          <div className="clay-section p-6 flex flex-col gap-3 w-full border border-red-100/80">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5 text-[#1e293b] font-bold text-[15px]">
+                <ShieldAlert size={18} className="text-red-500" strokeWidth={2.5} /> Stolen or Missing Mode
+              </div>
+              {activeTag?.shortCode && (
+                <span className="font-mono text-[11px] font-bold px-2.5 py-0.5 rounded-lg bg-slate-100 text-slate-600">
+                  {activeTag.shortCode}
+                </span>
+              )}
+            </div>
+
+            <p className="text-[13px] text-slate-500 font-medium leading-relaxed">
+              Immediately unlinks your connected bracelet and displays a stolen or missing notice when scanned. Only the owner (via account login on scan) or an administrator can re-enable it.
+            </p>
+
+            {stolenSuccessMsg && (
+              <div className="bg-amber-50 border border-amber-200 text-amber-800 text-[12px] font-semibold px-3.5 py-2.5 rounded-xl">
+                {stolenSuccessMsg}
+              </div>
+            )}
+
+            {activeTag ? (
+              !confirmStolen ? (
+                <button
+                  type="button"
+                  onClick={() => setConfirmStolen(true)}
+                  className="w-full py-3 px-4 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 font-bold text-[14px] flex items-center justify-center gap-2 transition-colors"
+                >
+                  <ShieldAlert size={17} strokeWidth={2.5} /> Activate Stolen or Missing Mode
+                </button>
+              ) : (
+                <div className="flex flex-col gap-2.5 bg-red-50/70 border border-red-200 rounded-xl p-3.5">
+                  <p className="text-[12px] font-bold text-red-700">
+                    Confirm: unlink bracelet {activeTag.shortCode || ''} and lock it as stolen or missing?
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setConfirmStolen(false)}
+                      disabled={isReportingStolen}
+                      className="flex-1 py-2.5 rounded-lg bg-white border border-slate-200 text-slate-700 font-bold text-[13px] hover:bg-slate-50 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleActivateStolenOrMissingMode}
+                      disabled={isReportingStolen}
+                      className="flex-1 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white font-bold text-[13px] transition-colors disabled:opacity-50"
+                    >
+                      {isReportingStolen ? 'Locking...' : 'Confirm Lock'}
+                    </button>
+                  </div>
+                </div>
+              )
+            ) : (
+              <div className="text-[12px] font-semibold text-slate-400 bg-slate-50 border border-slate-100 rounded-xl px-3.5 py-2.5 text-center">
+                No active bracelet currently linked to this profile
+              </div>
+            )}
           </div>
 
         </div>

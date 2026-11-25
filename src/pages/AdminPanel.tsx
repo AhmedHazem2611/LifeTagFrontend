@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Tag, Users, Trash2, Unlink, Shield, ShieldOff, RotateCcw, ExternalLink, User as UserIcon, X, KeyRound, Copy, Check, UserCheck, UserX } from 'lucide-react';
+import { Tag, Users, Trash2, Unlink, Shield, ShieldOff, ShieldAlert, RotateCcw, ExternalLink, User as UserIcon, X, KeyRound, Copy, Check, UserCheck, UserX } from 'lucide-react';
 import logo from '../assets/logo.png';
 
 interface AdminTag {
@@ -13,6 +13,7 @@ interface AdminTag {
     linkedUserName: string | null;
     hasGuardian?: boolean;
     guardianName?: string | null;
+    isStolenOrMissing?: boolean;
 }
 
 interface AdminUser {
@@ -103,6 +104,18 @@ export default function AdminPanel() {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ ...tag, isPinProtected: !tag.isPinProtected })
+            });
+            if (res.ok) fetchData();
+        } catch (error) { console.error(error); }
+    };
+
+    const handleDisableStolenOrMissingMode = async (id: number) => {
+        if (!confirm("Disable stolen or missing mode for this bracelet and allow normal use again?")) return;
+        try {
+            const res = await fetch(`${API_URL}/api/admin/tags/${id}/stolen-or-missing`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ isStolenOrMissing: false })
             });
             if (res.ok) fetchData();
         } catch (error) { console.error(error); }
@@ -292,6 +305,11 @@ export default function AdminPanel() {
                                                             <Shield size={11} strokeWidth={3} /> Guarded
                                                         </span>
                                                     )}
+                                                    {tag.isStolenOrMissing && (
+                                                        <span className="px-3 py-1 bg-red-50 text-red-600 text-[10px] font-black uppercase rounded-lg border border-red-200 flex items-center gap-1.5 shadow-sm shadow-red-100/50">
+                                                            <ShieldAlert size={11} strokeWidth={3} /> Stolen / Missing
+                                                        </span>
+                                                    )}
                                                     {tag.hasGuardian === true ? (
                                                         <span
                                                             title={tag.guardianName ? `Guardian: ${tag.guardianName}` : 'Guardian Linked'}
@@ -307,7 +325,16 @@ export default function AdminPanel() {
                                                 </div>
                                             </td>
                                             <td className="px-8 py-6 text-right">
-                                                <div className="flex justify-end gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
+                                                <div className="flex justify-end items-center gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
+                                                    {tag.isStolenOrMissing && (
+                                                        <button
+                                                            onClick={() => handleDisableStolenOrMissingMode(tag.id)}
+                                                            title="Disable Stolen or Missing Mode"
+                                                            className="px-2.5 py-1.5 text-[11px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl transition-all flex items-center gap-1 mr-1"
+                                                        >
+                                                            <ShieldAlert size={14} /> Clear Lock
+                                                        </button>
+                                                    )}
                                                     <button onClick={() => openEditPinModal(tag)} title="Edit PIN" className="p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all">
                                                         <KeyRound size={18} />
                                                     </button>

@@ -21,8 +21,13 @@ export default function QRHandler() {
         const data = await res.json();
 
         if (res.ok && data.success && data.data) {
-          const { isActive, isPinProtected, shortCode } = data.data;
+          const { isActive, isPinProtected, isStolenOrMissing, shortCode } = data.data;
           const slug = shortCode || identifier;
+
+          if (isStolenOrMissing) {
+            navigate(`/stolen-or-missing?code=${encodeURIComponent(slug)}`, { replace: true });
+            return;
+          }
 
           if (isActive && !isPinProtected) {
             navigate(`/public-profile/${slug}`, { replace: true });

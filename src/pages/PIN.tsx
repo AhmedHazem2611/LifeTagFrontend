@@ -30,6 +30,10 @@ export default function PIN() {
         if (cancelled) return;
 
         if (res.ok && data.success && data.data) {
+          if (data.data.isStolenOrMissing) {
+            navigate(`/stolen-or-missing?code=${encodeURIComponent(data.data.shortCode || tagIdentifier)}`, { replace: true });
+            return;
+          }
           if (data.data.isActive && !data.data.isPinProtected) {
             navigate(`/public-profile/${data.data.shortCode || tagIdentifier}`, { replace: true });
             return;
@@ -122,6 +126,11 @@ export default function PIN() {
           navigate('/signup');
         }
       } else {
+        const lowerMsg = String(data.message || '').toLowerCase();
+        if (lowerMsg.includes('stolen') || lowerMsg.includes('missing')) {
+          navigate(`/stolen-or-missing?code=${encodeURIComponent(tagIdentifier)}`, { replace: true });
+          return;
+        }
         setError(data.message || 'Invalid PIN');
         setPin(Array(pinLength).fill(''));
         inputRefs.current[0]?.focus();

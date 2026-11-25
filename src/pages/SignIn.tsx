@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import logo from '../assets/logo.png';
 import PasswordInput from '../components/PasswordInput';
@@ -8,10 +8,48 @@ export default function SignIn() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const editTagGuid = searchParams.get('editTagGuid');
+  const hasPendingTag = Boolean(sessionStorage.getItem('pendingTagGuid'));
+  const [verifiedUser, setVerifiedUser] = useState<{ id: number; fullName?: string; email?: string } | null>(null);
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (editTagGuid || hasPendingTag) return;
+
+    let parsed: any = null;
+    try {
+      const raw = localStorage.getItem('user');
+      parsed = raw ? JSON.parse(raw) : null;
+    } catch {
+      parsed = null;
+    }
+    if (!parsed?.id) return;
+
+    let cancelled = false;
+    fetch(`${import.meta.env.VITE_API_URL.replace(/\/$/, '')}/api/profile?userId=${parsed.id}`)
+      .then(async (res) => {
+        if (res.status === 404) {
+          localStorage.removeItem('user');
+          localStorage.removeItem('linkedTag');
+          return;
+        }
+        const data = await res.json().catch(() => null);
+        if (!cancelled && res.ok && data?.success && data.data) {
+          setVerifiedUser({
+            id: parsed.id,
+            fullName: data.data.fullName || parsed.fullName,
+            email: parsed.email,
+          });
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [editTagGuid, hasPendingTag]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,8 +141,8 @@ export default function SignIn() {
           <img src={logo} alt="LifeTag Logo" className="w-28 h-28 object-contain drop-shadow-sm" />
         </div>
 
-        {/* Progress Bar (Hidden in edit mode) */}
-        {!editTagGuid && (
+        {/* Progress Bar (Only shown during bracelet onboarding) */}
+        {!editTagGuid && hasPendingTag && (
           <div className="flex gap-2 w-full max-w-xs mx-auto mb-8">
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="flex-1 h-2 rounded-full bg-slate-200 overflow-hidden">
@@ -122,15 +160,17 @@ export default function SignIn() {
           </div>
         )}
 
-        {/* Edit Mode Title */}
-        {editTagGuid && (
-           <h2 className="text-[20px] font-bold text-slate-800 text-center mb-6">Sign in to edit this tag</h2>
-        )}
+        {/* Title */}
+        {editTagGuid ? (
+          <h2 className="text-[20px] font-bold text-slate-800 text-center mb-6">Sign in to edit this tag</h2>
+        ) : !hasPendingTag ? (
+          <h2 className="text-[20px] font-bold text-slate-800 text-center mb-6">Sign in to your Dashboard</h2>
+        ) : null}
 
         {/* Clay Card Content */}
         <div className="clay-card relative w-full">
-          {/* Tabs (Hidden in edit mode) */}
-          {!editTagGuid && (
+          {/* Tabs (Shown only during bracelet onboarding) */}
+          {!editTagGuid && hasPendingTag && (
             <div className="flex w-full bg-[#f1f5f9] rounded-xl p-[4px] mb-8">
               <Link to="/signup" className="flex-1 text-center py-2 rounded-lg text-[13px] font-semibold text-slate-400 hover:text-slate-600 transition-all">
                 Sign Up
@@ -139,6 +179,16 @@ export default function SignIn() {
                 Sign In
               </div>
             </div>
+          )}
+
+          {!editTagGuid && !hasPendingTag && verifiedUser?.id && (
+            <button
+              type="button"
+              onClick={() => navigate('/dashboard')}
+              className="w-full mb-5 px-4 py-2.5 rounded-xl bg-blue-50 hover:bg-blue-100/80 border border-blue-100 text-[#005adc] text-[13px] font-semibold transition-colors text-center"
+            >
+              Continue as {verifiedUser.fullName || verifiedUser.email} →
+            </button>
           )}
 
           {/* Form */}

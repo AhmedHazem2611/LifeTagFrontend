@@ -9,7 +9,25 @@ export default function PinProtection() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setTimeout(() => { setLoading(false); }, 400);
+    try {
+      const userStr = localStorage.getItem('user');
+      const user = userStr ? JSON.parse(userStr) : null;
+      const userId = user ? (user.id || user._id) : 0;
+      if (userId) {
+        const apiBase = import.meta.env.VITE_API_URL.replace(/\/$/, "");
+        fetch(`${apiBase}/api/active-tag/${userId}`)
+          .then(res => res.ok ? res.json() : null)
+          .then(data => {
+            if (data?.success && data.data) {
+              setEnabled(!!data.data.isPinProtected);
+            }
+          })
+          .catch(() => {})
+          .finally(() => setLoading(false));
+        return;
+      }
+    } catch {}
+    setLoading(false);
   }, []);
 
   const handleComplete = async () => {
